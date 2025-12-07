@@ -54,3 +54,22 @@ export async function addAgentNouveau(data: any) {
 export default api;
 
 
+// === PRESENCES ===
+export async function getAgentPresences() {
+  const token = localStorage.getItem("token");
+  const res = await api.get("/agent/presences", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
+
+export async function pointerPresence(type: "arrivee" | "depart") {
+  const token = localStorage.getItem("token");
+  const res = await api.post(
+    "/agent/presences",
+    { type },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+}
+

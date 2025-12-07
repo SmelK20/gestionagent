@@ -18,11 +18,19 @@ import Statistiques from "./pages/Statistiques";
 import Parametres from "./pages/Parametres";
 import NotFound from "./pages/NotFound";
 import Agentsnouveau from "@/pages/Agentsnouveau";
-import Affectations from "./pages/Affectations";
+import Presences from "./pages/Presence"; // ✅ ajouté
+import Carrieres from "./pages/carrieres";
 
-// Login universel (Admin + Agent)
+// Pages Agent
+import AgentLayout from "./pages/AgentEspace/AgentLayout";
+import AgentDashboard from "./pages/AgentEspace/AgentDashbord";
+import AgentProfil from "./pages/AgentEspace/AgentProfil";
+import AgentConger from "./pages/AgentEspace/Conger";
+import AgentPresence from "./pages/AgentEspace/AgentPresence"; // ✅ ajouté
+
+
+// Login (Admin + Agent)
 import Login from "./pages/Login";
-import AgentEspace from "./pages/AgentEspace";
 
 const queryClient = new QueryClient();
 
@@ -47,20 +55,25 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Login universel */}
+          {/* 🔐 Login universel */}
           <Route path="/login" element={<Login />} />
 
-          {/* Espace agent */}
+          {/* 🌐 Espace AGENT */}
           <Route
-            path="/agent/espace"
+            path="/agent/espace/*"
             element={
               <PrivateAgentRoute>
-                <AgentEspace />
+                <AgentLayout />
               </PrivateAgentRoute>
             }
-          />
+          >
+            <Route index element={<AgentDashboard />} />
+            <Route path="profil" element={<AgentProfil />} />
+            <Route path="conger" element={<AgentConger />} />
+            <Route path="presence" element={<AgentPresence />} /> {/* ✅ ajouté */}
+          </Route>
 
-          {/* Routes protégées admin */}
+          {/* 🧭 Espace ADMIN */}
           <Route
             path="/*"
             element={
@@ -78,7 +91,8 @@ const App = () => (
                     <Route path="/statistiques" element={<Statistiques />} />
                     <Route path="/parametres" element={<Parametres />} />
                     <Route path="/agentsnouveau" element={<Agentsnouveau />} />
-                    <Route path="/affectations" element={<Affectations />} />
+                    <Route path="/presences" element={<Presences />} /> {/* ✅ ajouté */}
+                    <Route path="/carrieres" element={<Carrieres />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Layout>

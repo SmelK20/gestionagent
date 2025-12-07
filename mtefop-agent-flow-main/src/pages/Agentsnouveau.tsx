@@ -1,20 +1,46 @@
-import { useState, useEffect } from "react"; 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Filter, Edit, Eye, MoreHorizontal, Mail, Phone } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Plus,
+  Search,
+  Edit,
+  Eye,
+  MoreHorizontal,
+  Mail,
+  Phone,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import api from "@/api";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface AgentNouveau {
   id: number;
@@ -35,11 +61,14 @@ interface AgentNouveau {
   specialisation: string;
   service_affectation: string;
   date_affectation: string;
-  ministere_id: number | null;
-  direction_id: number | null;
-  service_id: number | null;
-  fonction_id: number | null;
+  ministere: string;
+  direction: string;
+  service: string;
+  fonction: string;
+  mot_de_passe: string;
 }
+
+const MTEFOP_NAME = "MTEFOP";
 
 export default function Agentsnouveau() {
   const [agents, setAgents] = useState<AgentNouveau[]>([]);
@@ -47,12 +76,8 @@ export default function Agentsnouveau() {
   const [open, setOpen] = useState(false);
   const [openProfil, setOpenProfil] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentNouveau | null>(null);
+  const [editingAgent, setEditingAgent] = useState<AgentNouveau | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  const [ministeres, setMinisteres] = useState<any[]>([]);
-  const [directions, setDirections] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
-  const [fonctions, setFonctions] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     immatricule: "",
@@ -72,10 +97,11 @@ export default function Agentsnouveau() {
     specialisation: "",
     service_affectation: "",
     date_affectation: "",
-    ministere_id: "",
-    direction_id: "",
-    service_id: "",
-    fonction_id: "",
+    ministere: MTEFOP_NAME,
+    direction: "",
+    service: "",
+    fonction: "",
+    mot_de_passe: "",
   });
 
   useEffect(() => {
@@ -83,17 +109,6 @@ export default function Agentsnouveau() {
       try {
         const agentsRes = await api.get("/agents_nouveau");
         setAgents(agentsRes.data);
-
-        const adminRes = await Promise.all([
-          api.get("/ministeres"),
-          api.get("/directions"),
-          api.get("/services"),
-          api.get("/fonctions"),
-        ]);
-        setMinisteres(adminRes[0].data);
-        setDirections(adminRes[1].data);
-        setServices(adminRes[2].data);
-        setFonctions(adminRes[3].data);
       } catch (error) {
         console.error("Erreur récupération :", error);
       }
@@ -103,23 +118,48 @@ export default function Agentsnouveau() {
 
   function validateForm() {
     const newErrors: { [key: string]: string } = {};
-    if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(formData.nom)) newErrors.nom = "Le nom ne doit contenir que des lettres.";
-    if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(formData.prenom)) newErrors.prenom = "Le prénom ne doit contenir que des lettres.";
-    if (!/^[a-zA-Z0-9]+$/.test(formData.cin)) newErrors.cin = "Le CIN doit contenir seulement lettres et chiffres.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Email invalide.";
-    if (!/^\d{8,15}$/.test(formData.telephone)) newErrors.telephone = "Numéro de téléphone invalide (8 à 15 chiffres).";
-    if (!/^[a-zA-Z0-9]+$/.test(formData.immatricule)) newErrors.immatricule = "L'immatricule doit contenir lettres et chiffres seulement.";
+
+    if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(formData.nom))
+      newErrors.nom = "Le nom ne doit contenir que des lettres.";
+
+    if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(formData.prenom))
+      newErrors.prenom = "Le prénom ne doit contenir que des lettres.";
+
+    if (!/^\d+$/.test(formData.cin))
+      newErrors.cin = "Le CIN doit contenir uniquement des chiffres.";
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+      newErrors.email = "Email invalide.";
+
+    if (!/^\d{8,15}$/.test(formData.telephone))
+      newErrors.telephone = "Numéro de téléphone invalide (8 à 15 chiffres).";
+
+    if (!/^[a-zA-Z0-9]+$/.test(formData.immatricule))
+      newErrors.immatricule = "L'immatricule doit contenir lettres et chiffres seulement.";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
 
-  async function handleAddAgent(e: React.FormEvent) {
+  async function handleAddOrEditAgent(e: React.FormEvent) {
     e.preventDefault();
     if (!validateForm()) return;
+
     try {
-      const response = await api.post("/agents_nouveau", formData);
-      setAgents(prev => [response.data, ...prev]);
+      if (editingAgent) {
+        const response = await api.put(`/agents_nouveau/${editingAgent.id}`, formData);
+        setAgents((prev) =>
+          prev.map((agent) => (agent.id === editingAgent.id ? response.data : agent))
+        );
+      } else {
+        const response = await api.post("/agents_nouveau", formData);
+        setAgents((prev) => [response.data, ...prev]);
+      }
+
       setOpen(false);
+      setEditingAgent(null);
+
+      // Reset
       setFormData({
         immatricule: "",
         cin: "",
@@ -138,14 +178,16 @@ export default function Agentsnouveau() {
         specialisation: "",
         service_affectation: "",
         date_affectation: "",
-        ministere_id: "",
-        direction_id: "",
-        service_id: "",
-        fonction_id: "",
+        ministere: MTEFOP_NAME,
+        direction: "",
+        service: "",
+        fonction: "",
+        mot_de_passe: "",
       });
+
       setErrors({});
     } catch (error) {
-      console.error("Erreur lors de l’ajout :", error);
+      console.error("Erreur lors de l’ajout/modification :", error);
     }
   }
 
@@ -154,119 +196,153 @@ export default function Agentsnouveau() {
     setOpenProfil(true);
   };
 
-  const filteredAgents = agents.filter(agent =>
-    agent.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    agent.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    agent.immatricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    agent.service_affectation.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleEditAgent = (agent: AgentNouveau) => {
+    setEditingAgent(agent);
+    setFormData({ ...agent });
+    setOpen(true);
+  };
 
-  const filteredDirections = directions.filter(d => !formData.ministere_id || d.ministere_id === Number(formData.ministere_id));
-  const filteredServices = services.filter(s => !formData.direction_id || s.direction_id === Number(formData.direction_id));
+  const filteredAgents = agents.filter(
+    (agent) =>
+      agent.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agent.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agent.immatricule.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agent.service_affectation.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Gestion des Agents</h1>
-          <p className="text-muted-foreground mt-2">Gérez les informations personnelles et professionnelles des agents</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            Gestion des Agents
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Gérez les informations personnelles et professionnelles des agents
+          </p>
         </div>
 
-        {/* ✅ Bouton Ajouter un agent (inchangé) */}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary text-primary-foreground hover:scale-105 transition-transform shadow-soft">
-              <Plus className="h-4 w-4 mr-2" /> Ajouter un agent
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Ajouter un agent</DialogTitle></DialogHeader>
-
-            <form onSubmit={handleAddAgent} className="space-y-3">
-              <h3 className="font-semibold text-primary">Informations personnelles</h3>
-              <Input placeholder="Immatricule" value={formData.immatricule} onChange={e => setFormData({...formData, immatricule: e.target.value})} />
-              <Input placeholder="CIN" value={formData.cin} onChange={e => setFormData({...formData, cin: e.target.value})} />
-              <Input placeholder="Nom" value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} />
-              <Input placeholder="Prénom" value={formData.prenom} onChange={e => setFormData({...formData, prenom: e.target.value})} />
-              <Input type="date" placeholder="Date de naissance" value={formData.date_naissance} onChange={e => setFormData({...formData, date_naissance: e.target.value})} />
-              <Input placeholder="Adresse" value={formData.adresse} onChange={e => setFormData({...formData, adresse: e.target.value})} />
-              <Input placeholder="Situation matrimoniale" value={formData.situation_matrimoniale} onChange={e => setFormData({...formData, situation_matrimoniale: e.target.value})} />
-
-              <select value={formData.sexe} onChange={e => setFormData({...formData, sexe: e.target.value})} className="w-full rounded-md border px-2 py-1">
-                <option value="">Sexe</option>
-                <option value="Masculin">Masculin</option>
-                <option value="Féminin">Féminin</option>
-              </select>
-
-              <Input placeholder="Email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-              <Input placeholder="Téléphone" value={formData.telephone} onChange={e => setFormData({...formData, telephone: e.target.value})} />
-
-              <h3 className="font-semibold text-primary pt-4">Informations professionnelles</h3>
-              <Input placeholder="Corps" value={formData.corps} onChange={e => setFormData({...formData, corps: e.target.value})} />
-              <Input placeholder="Grade" value={formData.grade} onChange={e => setFormData({...formData, grade: e.target.value})} />
-              <Input placeholder="Catégorie" value={formData.categorie} onChange={e => setFormData({...formData, categorie: e.target.value})} />
-              <Input placeholder="Diplôme" value={formData.diplome} onChange={e => setFormData({...formData, diplome: e.target.value})} />
-              <Input placeholder="Spécialisation" value={formData.specialisation} onChange={e => setFormData({...formData, specialisation: e.target.value})} />
-              <Input placeholder="Service d'affectation" value={formData.service_affectation} onChange={e => setFormData({...formData, service_affectation: e.target.value})} />
-              <Input type="date" placeholder="Date d'affectation" value={formData.date_affectation} onChange={e => setFormData({...formData, date_affectation: e.target.value})} />
-              {/* Ministère */}
-<select
-  value={formData.ministere_id}
-  onChange={e => setFormData({ ...formData, ministere_id: e.target.value, direction_id: "", service_id: "" })}
-  className="w-full rounded-md border px-2 py-1 mb-2"
->
-  <option value="">Sélectionner un ministère</option>
-  {ministeres.map(m => (
-    <option key={m.id} value={m.id}>{m.nom}</option>
-  ))}
-</select>
-
-{/* Direction */}
-<select
-  value={formData.direction_id}
-  onChange={e => setFormData({ ...formData, direction_id: e.target.value, service_id: "" })}
-  className="w-full rounded-md border px-2 py-1 mb-2"
->
-  <option value="">Sélectionner une direction</option>
-  {filteredDirections.map(d => (
-    <option key={d.id} value={d.id}>{d.nom}</option>
-  ))}
-</select>
-
-{/* Service */}
-<select
-  value={formData.service_id}
-  onChange={e => setFormData({ ...formData, service_id: e.target.value })}
-  className="w-full rounded-md border px-2 py-1 mb-2"
->
-  <option value="">Sélectionner un service</option>
-  {filteredServices.map(s => (
-    <option key={s.id} value={s.id}>{s.nom}</option>
-  ))}
-</select>
-
-{/* Fonction */}
-<select
-  value={formData.fonction_id}
-  onChange={e => setFormData({ ...formData, fonction_id: e.target.value })}
-  className="w-full rounded-md border px-2 py-1 mb-2"
->
-  <option value="">Sélectionner une fonction</option>
-  {fonctions.map(f => (
-    <option key={f.id} value={f.id}>{f.nom}</option>
-  ))}
-</select>
-
-              <DialogFooter>
-                <Button type="submit">Enregistrer</Button>
-                <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {/* Bouton OUVERTURE DIALOG contrôlé manuellement */}
+        <Button
+          className="bg-gradient-primary text-primary-foreground hover:scale-105 transition-transform shadow-soft"
+          onClick={() => {
+            setEditingAgent(null);
+            setOpen(true);
+          }}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Ajouter un agent
+        </Button>
       </div>
+
+      {/* Dialog AJOUT / MODIFICATION */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="w-[50vw] max-w-none">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAgent ? "Modifier un agent" : "Ajouter un agent"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleAddOrEditAgent} className="space-y-4">
+            <div className="grid grid-cols-2 gap-6">
+
+              {/* Info perso */}
+              <div>
+                <h3 className="font-semibold text-primary mb-2 col-span-2">
+                  Informations personnelles
+                </h3>
+
+                <Label>Immatricule</Label>
+                <Input value={formData.immatricule} onChange={(e) => setFormData({ ...formData, immatricule: e.target.value })} />
+
+                <Label>CIN</Label>
+                <Input value={formData.cin} onChange={(e) => setFormData({ ...formData, cin: e.target.value.replace(/\D/g, "") })} />
+
+                <Label>Nom</Label>
+                <Input value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value })} />
+
+                <Label>Prénom</Label>
+                <Input value={formData.prenom} onChange={(e) => setFormData({ ...formData, prenom: e.target.value })} />
+
+                <Label>Date de naissance</Label>
+                <Input type="date" value={formData.date_naissance} onChange={(e) => setFormData({ ...formData, date_naissance: e.target.value })} />
+
+                <Label>Adresse</Label>
+                <Input value={formData.adresse} onChange={(e) => setFormData({ ...formData, adresse: e.target.value })} />
+
+                <Label>Situation matrimoniale</Label>
+                <Input value={formData.situation_matrimoniale} onChange={(e) => setFormData({ ...formData, situation_matrimoniale: e.target.value })} />
+
+                <Label>Sexe</Label>
+                <select
+                  value={formData.sexe}
+                  onChange={(e) => setFormData({ ...formData, sexe: e.target.value })}
+                  className="w-full border rounded-md p-2"
+                >
+                  <option value="">Sélectionner</option>
+                  <option value="Masculin">Masculin</option>
+                  <option value="Féminin">Féminin</option>
+                </select>
+
+                <Label>Email</Label>
+                <Input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+
+                <Label>Téléphone</Label>
+                <Input value={formData.telephone} onChange={(e) => setFormData({ ...formData, telephone: e.target.value })} />
+              </div>
+
+              {/* Informations professionnelles */}
+              <div>
+                <h3 className="font-semibold text-primary mb-2 col-span-2">
+                  Informations professionnelles
+                </h3>
+
+                <Label>Corps</Label>
+                <Input value={formData.corps} onChange={(e) => setFormData({ ...formData, corps: e.target.value })} />
+
+                <Label>Grade</Label>
+                <Input value={formData.grade} onChange={(e) => setFormData({ ...formData, grade: e.target.value })} />
+
+                <Label>Catégorie</Label>
+                <Input value={formData.categorie} onChange={(e) => setFormData({ ...formData, categorie: e.target.value })} />
+
+                <Label>Diplôme</Label>
+                <Input value={formData.diplome} onChange={(e) => setFormData({ ...formData, diplome: e.target.value })} />
+
+                <Label>Spécialisation</Label>
+                <Input value={formData.specialisation} onChange={(e) => setFormData({ ...formData, specialisation: e.target.value })} />
+
+                <Label>Service d'affectation</Label>
+                <Input value={formData.service_affectation} onChange={(e) => setFormData({ ...formData, service_affectation: e.target.value })} />
+
+                <Label>Date d'affectation</Label>
+                <Input type="date" value={formData.date_affectation} onChange={(e) => setFormData({ ...formData, date_affectation: e.target.value })} />
+
+                <Label>Direction</Label>
+                <Input value={formData.direction} onChange={(e) => setFormData({ ...formData, direction: e.target.value })} />
+
+                <Label>Service</Label>
+                <Input value={formData.service} onChange={(e) => setFormData({ ...formData, service: e.target.value })} />
+
+                <Label>Fonction</Label>
+                <Input value={formData.fonction} onChange={(e) => setFormData({ ...formData, fonction: e.target.value })} />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="submit">
+                {editingAgent ? "Modifier" : "Enregistrer"}
+              </Button>
+
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Annuler
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Recherche */}
       <Card className="shadow-soft">
@@ -285,11 +361,13 @@ export default function Agentsnouveau() {
         </CardContent>
       </Card>
 
-      {/* Table des agents */}
+      {/* Table */}
       <Card className="shadow-soft">
         <CardHeader>
           <CardTitle>Liste des Agents</CardTitle>
-          <CardDescription>{filteredAgents.length} agent(s) trouvé(s)</CardDescription>
+          <CardDescription>
+            {filteredAgents.length} agent(s) trouvé(s)
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -303,30 +381,48 @@ export default function Agentsnouveau() {
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
-              {filteredAgents.map(agent => (
+              {filteredAgents.map((agent) => (
                 <TableRow key={agent.id} className="hover:bg-muted/50">
                   <TableCell>
-                    <div className="font-medium">{agent.prenom} {agent.nom}</div>
+                    <div className="font-medium">
+                      {agent.prenom} {agent.nom}
+                    </div>
                   </TableCell>
                   <TableCell>{agent.immatricule}</TableCell>
-                  <TableCell><Badge>{agent.service_affectation}</Badge></TableCell>
                   <TableCell>
-                    <div className="text-sm"><Mail className="inline h-3 w-3 mr-1" />{agent.email}</div>
-                    <div className="text-sm"><Phone className="inline h-3 w-3 mr-1" />{agent.telephone}</div>
+                    <Badge>{agent.service_affectation}</Badge>
                   </TableCell>
-                  <TableCell>{fonctions.find(f => f.id === Number(agent.fonction_id))?.nom || ""}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <Mail className="inline h-3 w-3 mr-1" />
+                      {agent.email}
+                    </div>
+                    <div className="text-sm">
+                      <Phone className="inline h-3 w-3 mr-1" />
+                      {agent.telephone}
+                    </div>
+                  </TableCell>
+                  <TableCell>{agent.fonction || "—"}</TableCell>
+
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
                       </DropdownMenuTrigger>
+
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleViewProfil(agent)}>
-                          <Eye className="mr-2 h-4 w-4" /> Voir le profil
+                          <Eye className="mr-2 h-4 w-4" />
+                          Voir le profil
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" /> Modifier
+
+                        <DropdownMenuItem onClick={() => handleEditAgent(agent)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Modifier
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -334,18 +430,26 @@ export default function Agentsnouveau() {
                 </TableRow>
               ))}
             </TableBody>
+
           </Table>
         </CardContent>
       </Card>
 
-      {/* ✅ Dialog Profil */}
+      {/* Profil Agent */}
       {selectedAgent && (
         <Dialog open={openProfil} onOpenChange={setOpenProfil}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Profil de {selectedAgent.prenom} {selectedAgent.nom}</DialogTitle>
+              <DialogTitle>
+                Profil de {selectedAgent.prenom} {selectedAgent.nom}
+              </DialogTitle>
             </DialogHeader>
+
             <div className="space-y-3 text-sm">
+              <h3 className="font-semibold text-primary border-b pb-1">
+                Informations personnelles
+              </h3>
+
               <p><strong>Immatricule :</strong> {selectedAgent.immatricule}</p>
               <p><strong>CIN :</strong> {selectedAgent.cin}</p>
               <p><strong>Email :</strong> {selectedAgent.email}</p>
@@ -354,7 +458,13 @@ export default function Agentsnouveau() {
               <p><strong>Date de naissance :</strong> {selectedAgent.date_naissance}</p>
               <p><strong>Situation matrimoniale :</strong> {selectedAgent.situation_matrimoniale}</p>
               <p><strong>Sexe :</strong> {selectedAgent.sexe}</p>
+
               <hr />
+
+              <h3 className="font-semibold text-primary border-b pb-1">
+                Informations professionnelles
+              </h3>
+
               <p><strong>Corps :</strong> {selectedAgent.corps}</p>
               <p><strong>Grade :</strong> {selectedAgent.grade}</p>
               <p><strong>Catégorie :</strong> {selectedAgent.categorie}</p>
@@ -362,8 +472,24 @@ export default function Agentsnouveau() {
               <p><strong>Spécialisation :</strong> {selectedAgent.specialisation}</p>
               <p><strong>Service d’affectation :</strong> {selectedAgent.service_affectation}</p>
               <p><strong>Date d’affectation :</strong> {selectedAgent.date_affectation}</p>
+
+              <hr />
+
+              <h3 className="font-semibold text-primary border-b pb-1">
+                Affectation hiérarchique
+              </h3>
+
+              <p><strong>Ministère :</strong> {selectedAgent.ministere}</p>
+              <p><strong>Direction :</strong> {selectedAgent.direction || "—"}</p>
+              <p><strong>Service :</strong> {selectedAgent.service || "—"}</p>
+              <p><strong>Fonction :</strong> {selectedAgent.fonction || "—"}</p>
             </div>
-            <DialogFooter><Button variant="outline" onClick={() => setOpenProfil(false)}>Fermer</Button></DialogFooter>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpenProfil(false)}>
+                Fermer
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

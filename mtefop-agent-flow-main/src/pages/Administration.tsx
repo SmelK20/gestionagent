@@ -1,36 +1,41 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Building2, 
-  Users, 
-  Briefcase, 
+import {
+  Building2,
+  Users,
+  Briefcase,
   MapPin,
   Plus,
   Edit,
   Trash2,
-  Settings
+  Settings,
 } from "lucide-react";
-import { api } from "@/api"; // ton fichier api.ts
+import { api } from "@/api"; 
 import { toast } from "sonner";
 
+const MTEFOP_ID = 1; // Ministère fixe
+
 export default function Administration() {
-  // États pour stocker les données
-  const [ministeres, setMinisteres] = useState([]);
-  const [directions, setDirections] = useState([]);
-  const [services, setServices] = useState([]);
-  const [fonctions, setFonctions] = useState([]);
-  
-  // Nouveaux inputs
+  const [ministeres, setMinisteres] = useState<any[]>([]);
+  const [directions, setDirections] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [fonctions, setFonctions] = useState<any[]>([]);
+
   const [newMinistere, setNewMinistere] = useState("");
   const [newDirection, setNewDirection] = useState("");
   const [newService, setNewService] = useState("");
   const [newFonction, setNewFonction] = useState("");
 
-  // Charger les données depuis le backend
   useEffect(() => {
     fetchAll();
   }, []);
@@ -39,7 +44,7 @@ export default function Administration() {
     try {
       const [resMin, resDir, resServ, resFon] = await Promise.all([
         api.get("/ministeres"),
-        api.get("/directions"),
+        api.get(`/directions?ministere_id=${MTEFOP_ID}`),
         api.get("/services"),
         api.get("/fonctions"),
       ]);
@@ -47,53 +52,59 @@ export default function Administration() {
       setDirections(resDir.data);
       setServices(resServ.data);
       setFonctions(resFon.data);
-    } catch (error) {
+    } catch {
       toast.error("Erreur lors du chargement des données");
     }
   };
 
-  // Ajouter un élément
   const handleAdd = async (type: string, value: string) => {
     if (!value) return;
     try {
       let res;
-      switch(type) {
+      switch (type) {
         case "ministere":
           res = await api.post("/ministeres", { nom: value });
-          setMinisteres(prev => [...prev, res.data]);
+          setMinisteres((prev) => [...prev, res.data]);
           setNewMinistere("");
           break;
         case "direction":
-          res = await api.post("/directions", { nom: value });
-          setDirections(prev => [...prev, res.data]);
+          res = await api.post("/directions", { nom: value, ministere_id: MTEFOP_ID });
+          setDirections((prev) => [...prev, res.data]);
           setNewDirection("");
           break;
         case "service":
           res = await api.post("/services", { nom: value });
-          setServices(prev => [...prev, res.data]);
+          setServices((prev) => [...prev, res.data]);
           setNewService("");
           break;
         case "fonction":
           res = await api.post("/fonctions", { nom: value });
-          setFonctions(prev => [...prev, res.data]);
+          setFonctions((prev) => [...prev, res.data]);
           setNewFonction("");
           break;
       }
       toast.success("Ajout réussi !");
-    } catch (error) {
+    } catch {
       toast.error("Erreur lors de l'ajout");
     }
   };
 
-  // Supprimer un élément
-  const handleDelete = async (type: string, id: string) => {
+  const handleDelete = async (type: string, id: number) => {
     try {
       await api.delete(`/${type}/${id}`);
-      switch(type) {
-        case "ministeres": setMinisteres(prev => prev.filter(m => m.id !== id)); break;
-        case "directions": setDirections(prev => prev.filter(d => d.id !== id)); break;
-        case "services": setServices(prev => prev.filter(s => s.id !== id)); break;
-        case "fonctions": setFonctions(prev => prev.filter(f => f.id !== id)); break;
+      switch (type) {
+        case "ministeres":
+          setMinisteres((prev) => prev.filter((m) => m.id !== id));
+          break;
+        case "directions":
+          setDirections((prev) => prev.filter((d) => d.id !== id));
+          break;
+        case "services":
+          setServices((prev) => prev.filter((s) => s.id !== id));
+          break;
+        case "fonctions":
+          setFonctions((prev) => prev.filter((f) => f.id !== id));
+          break;
       }
       toast.success("Suppression réussie !");
     } catch {
@@ -110,7 +121,6 @@ export default function Administration() {
         </p>
       </div>
 
-      {/* Structure hiérarchique */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Ministères */}
         <Card className="shadow-soft">
@@ -119,16 +129,14 @@ export default function Administration() {
               <Building2 className="h-5 w-5" />
               Ministères
             </CardTitle>
-            <CardDescription>
-              Gestion des ministères de l'administration publique
-            </CardDescription>
+            <CardDescription>Gestion des ministères de l'administration publique</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <Input
                 placeholder="Nom du ministère"
                 value={newMinistere}
-                onChange={e => setNewMinistere(e.target.value)}
+                onChange={(e) => setNewMinistere(e.target.value)}
                 className="flex-1"
               />
               <Button size="sm" onClick={() => handleAdd("ministere", newMinistere)}>
@@ -136,11 +144,10 @@ export default function Administration() {
               </Button>
             </div>
             <div className="space-y-2">
-              {ministeres.map(m => (
+              {ministeres.map((m) => (
                 <div key={m.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <h4 className="font-medium">{m.nom}</h4>
-                    <p className="text-sm text-muted-foreground">{m.description || ""}</p>
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline">
@@ -163,16 +170,14 @@ export default function Administration() {
               <MapPin className="h-5 w-5" />
               Directions
             </CardTitle>
-            <CardDescription>
-              Directions rattachées aux ministères
-            </CardDescription>
+            <CardDescription>Directions rattachées aux ministères</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <Input
                 placeholder="Nom de la direction"
                 value={newDirection}
-                onChange={e => setNewDirection(e.target.value)}
+                onChange={(e) => setNewDirection(e.target.value)}
                 className="flex-1"
               />
               <Button size="sm" onClick={() => handleAdd("direction", newDirection)}>
@@ -180,11 +185,13 @@ export default function Administration() {
               </Button>
             </div>
             <div className="space-y-2">
-              {directions.map(d => (
+              {directions.map((d) => (
                 <div key={d.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <h4 className="font-medium">{d.nom}</h4>
-                    <Badge variant="secondary" className="text-xs">{d.ministere?.nom}</Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {ministeres.find((m) => m.id === d.ministere_id)?.nom || "—"}
+                    </Badge>
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline">
@@ -207,16 +214,14 @@ export default function Administration() {
               <Users className="h-5 w-5" />
               Services
             </CardTitle>
-            <CardDescription>
-              Services au sein des directions
-            </CardDescription>
+            <CardDescription>Services au sein des directions</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <Input
                 placeholder="Nom du service"
                 value={newService}
-                onChange={e => setNewService(e.target.value)}
+                onChange={(e) => setNewService(e.target.value)}
                 className="flex-1"
               />
               <Button size="sm" onClick={() => handleAdd("service", newService)}>
@@ -224,11 +229,13 @@ export default function Administration() {
               </Button>
             </div>
             <div className="space-y-2">
-              {services.map(s => (
+              {services.map((s) => (
                 <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <h4 className="font-medium">{s.nom}</h4>
-                    <Badge variant="outline" className="text-xs">{s.direction?.nom}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {directions.find((d) => d.id === s.direction_id)?.nom || "—"}
+                    </Badge>
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline">
@@ -251,16 +258,14 @@ export default function Administration() {
               <Briefcase className="h-5 w-5" />
               Fonctions
             </CardTitle>
-            <CardDescription>
-              Définition des fonctions et postes disponibles
-            </CardDescription>
+            <CardDescription>Définition des fonctions et postes disponibles</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <Input
                 placeholder="Nom de la fonction"
                 value={newFonction}
-                onChange={e => setNewFonction(e.target.value)}
+                onChange={(e) => setNewFonction(e.target.value)}
                 className="flex-1"
               />
               <Button size="sm" onClick={() => handleAdd("fonction", newFonction)}>
@@ -268,11 +273,10 @@ export default function Administration() {
               </Button>
             </div>
             <div className="space-y-2">
-              {fonctions.map(f => (
+              {fonctions.map((f) => (
                 <div key={f.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <h4 className="font-medium">{f.nom}</h4>
-                    <p className="text-sm text-muted-foreground">{f.description || ""}</p>
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline">
@@ -296,9 +300,7 @@ export default function Administration() {
             <Settings className="h-5 w-5" />
             Configuration organisationnelle
           </CardTitle>
-          <CardDescription>
-            Paramètres généraux de l'organisation
-          </CardDescription>
+          <CardDescription>Paramètres généraux de l'organisation</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2">

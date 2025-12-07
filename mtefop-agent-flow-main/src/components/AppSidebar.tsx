@@ -11,6 +11,7 @@ import {
   Settings,
   Home,
   ChevronLeft,
+  Clock,
   ChevronRight
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -31,17 +32,11 @@ import mtefopLogo from "@/assets/mtefop-logo.png";
 
 const menuItems = [
   { title: "Tableau de bord", url: "/", icon: Home },
-  // { title: "Agents", url: "/agents", icon: Users },
-  //{ title: "Missions", url: "/missions", icon: Briefcase },
-  //{ title: "Documents", url: "/documents", icon: FileText },
   { title: "Agents", url: "/agentsnouveau", icon: UserPlus },
-  { title: "Administration", url: "/administration", icon: Building2 },
+  { title: "Carrières", url: "/carrieres", icon: Briefcase },
   { title: "Congés", url: "/conges", icon: Calendar },
-  // { title: "Affectations", url: "/affectations", icon: UserPlus }, // ← ajouté
-  { title: "Liste des besoins", url: "/besoins", icon: UserPlus },
-  { title: "Notifications", url: "/notifications", icon: Bell },
-  //{ title: "Statistiques", url: "/statistiques", icon: BarChart3 },
-  // { title: "Paramètres", url: "/parametres", icon: Settings },
+  { title: "Rapports", url: "/statistiques", icon: BarChart3 },
+  { title: "Paramètres", url: "/parametres", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -66,7 +61,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarContent className="bg-card border-r border-border">
+      <SidebarContent className="bg-[hsl(var(--sidebar-background))] border-r border-border">
         {/* Header avec logo */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center space-x-2">
