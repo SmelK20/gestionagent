@@ -7,7 +7,7 @@ return [
     'allowed_methods' => ['*'],
 
     // Port exact où ton frontend Vite tourne (npm run dev)
-    'allowed_origins' => ['https://localhost:8080'],
+    'allowed_origins' => ['http://localhost:5173'],
 
     'allowed_origins_patterns' => [],
 

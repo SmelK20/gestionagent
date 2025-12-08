@@ -1,28 +1,19 @@
-import { defineConfig } from "vite";
+import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import fs from "fs";
-import { componentTagger } from "lovable-tagger";
 
-// Chemins vers le certificat et la clé mkcert
-const certPath = path.resolve(__dirname, "cert/localhost+2.pem");
-const keyPath = path.resolve(__dirname, "cert/localhost+2-key.pem");
-
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+const config: UserConfig = {
   server: {
-    host: "::",
-    port: 8080,
-    https: {
-      key: fs.readFileSync(keyPath),
-      cert: fs.readFileSync(certPath),
-    },
+    host: "localhost",
+    port: 5173,
+    https: false, // ✅ boolean accepté par le type UserConfig
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+};
 
+export default defineConfig(config);

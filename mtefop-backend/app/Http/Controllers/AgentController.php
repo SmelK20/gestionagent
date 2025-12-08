@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 
 class AgentController extends Controller
 {
-    // Middleware pour protéger les routes
+    /**
+     * Middleware pour protéger les routes.
+     */
     public function __construct()
     {
         // Toutes les routes nécessitent l'authentification Sanctum
@@ -15,16 +17,16 @@ class AgentController extends Controller
     }
 
     /**
-     * 🔹 Retourne le profil complet de l'agent connecté
+     * Retourne le profil complet de l'agent connecté.
      */
     public function profile(Request $request)
     {
-        $agent = $request->user(); // récupère l'agent connecté
+        $agent = $request->user();
+
         if (!$agent) {
             return response()->json(['message' => 'Utilisateur non authentifié'], 401);
         }
 
-        // Retourne toutes les infos nécessaires pour le front
         return response()->json([
             'id' => $agent->id,
             'immatricule' => $agent->immatricule,
@@ -52,7 +54,7 @@ class AgentController extends Controller
     }
 
     /**
-     * 🔹 Lister tous les agents
+     * Lister tous les agents.
      */
     public function index()
     {
@@ -60,7 +62,7 @@ class AgentController extends Controller
     }
 
     /**
-     * 🔹 Créer un nouvel agent
+     * Créer un nouvel agent.
      */
     public function store(Request $request)
     {
@@ -89,27 +91,31 @@ class AgentController extends Controller
         ]);
 
         $agent = Agent::create($validated);
+
         return response()->json($agent, 201);
     }
 
     /**
-     * 🔹 Afficher un agent précis
+     * Afficher un agent précis.
      */
     public function show($id)
     {
         $agent = Agent::find($id);
+
         if (!$agent) {
             return response()->json(['message' => 'Agent non trouvé'], 404);
         }
+
         return response()->json($agent);
     }
 
     /**
-     * 🔹 Mettre à jour un agent
+     * Mettre à jour un agent.
      */
     public function update(Request $request, $id)
     {
         $agent = Agent::find($id);
+
         if (!$agent) {
             return response()->json(['message' => 'Agent non trouvé'], 404);
         }
@@ -139,20 +145,23 @@ class AgentController extends Controller
         ]);
 
         $agent->update($validated);
+
         return response()->json($agent);
     }
 
     /**
-     * 🔹 Supprimer un agent
+     * Supprimer un agent.
      */
     public function destroy($id)
     {
         $agent = Agent::find($id);
+
         if (!$agent) {
             return response()->json(['message' => 'Agent non trouvé'], 404);
         }
 
         $agent->delete();
+
         return response()->json(['message' => 'Agent supprimé avec succès']);
     }
 }
