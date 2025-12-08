@@ -152,9 +152,12 @@ export default function Agentsnouveau() {
           prev.map((agent) => (agent.id === editingAgent.id ? response.data : agent))
         );
       } else {
-        const response = await api.post("/agents_nouveau", formData);
-        setAgents((prev) => [response.data, ...prev]);
-      }
+      const response = await api.post("/agents_nouveau", formData);
+      const createdAgent: AgentNouveau =
+        (response.data && response.data.agent) || response.data;
+
+      setAgents((prev) => [createdAgent, ...prev]);
+    }
 
       setOpen(false);
       setEditingAgent(null);
