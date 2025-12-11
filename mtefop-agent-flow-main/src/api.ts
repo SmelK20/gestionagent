@@ -27,16 +27,23 @@ export async function addMission(data: any) {
 
 // === AUTH ADMIN ===
 export async function loginAdmin(email: string, password: string) {
+  // ⚠️ Vérifie que ta route côté backend est bien /admin/login ou /login
   const res = await api.post("/admin/login", { email, password });
+  // Ici normalement tu récupères un token et tu le stockes
+  // ex: localStorage.setItem("token", res.data.token);
   return res.data;
 }
 
 export async function logoutAdmin() {
-  await api.post("/admin/logout", {}, {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
-  });
+  await api.post(
+    "/admin/logout",
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    }
+  );
   localStorage.removeItem("token");
 }
 
@@ -51,8 +58,24 @@ export async function addAgentNouveau(data: any) {
   return res.data;
 }
 
-export default api;
+// === AFFECTATIONS ===
+export async function getAffectations() {
+  const token = localStorage.getItem("token");
+  const res = await api.get("/affectations", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
 
+export async function createAffectation(data: any) {
+  const token = localStorage.getItem("token");
+  const res = await api.post("/affectations", data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
+
+export default api;
 
 // === PRESENCES ===
 export async function getAgentPresences() {
@@ -72,4 +95,3 @@ export async function pointerPresence(type: "arrivee" | "depart") {
   );
   return res.data;
 }
-

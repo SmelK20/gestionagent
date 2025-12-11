@@ -6,35 +6,33 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void
+    public function up()
     {
         Schema::create('affectations', function (Blueprint $table) {
             $table->id();
 
-            // Référence à l'agent
-            $table->foreignId('agent_id')->constrained('agents_nouveau')->onDelete('cascade');
+            // Agent concerné
+            $table->foreignId('agent_id')
+                  ->constrained('agents_nouveau')
+                  ->onDelete('cascade');
 
-            // Références hiérarchiques (si tu les utilises)
-            $table->foreignId('province_id')->nullable()->constrained()->onDelete('cascade');
-            $table->foreignId('region_id')->nullable()->constrained()->onDelete('cascade');
-            $table->foreignId('district_id')->nullable()->constrained()->onDelete('cascade');
-            $table->foreignId('commune_id')->nullable()->constrained()->onDelete('cascade');
+            // Ancienne affectation (avant changement)
+            $table->string('ancienne_direction')->nullable();
+            $table->string('ancien_service')->nullable();
+            $table->string('ancienne_fonction')->nullable();
+            $table->date('ancienne_date_affectation')->nullable();
 
-            // Références service et fonction
-            $table->foreignId('service_id')->nullable()->constrained()->onDelete('cascade');
-            $table->foreignId('fonction_id')->nullable()->constrained()->onDelete('cascade');
+            // Nouvelle affectation (après changement)
+            $table->string('direction');   // nouvelle direction
+            $table->string('service');     // nouveau service
+            $table->string('fonction');    // nouvelle fonction
+            $table->date('date_affectation'); // date du changement
 
-            // Informations supplémentaires
-            $table->date('date_debut');
-            $table->date('date_fin')->nullable();
-            $table->string('statut')->default('active');
-            $table->text('observation')->nullable();
-
-            $table->timestamps();
+            $table->timestamps(); // created_at, updated_at
         });
     }
 
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('affectations');
     }

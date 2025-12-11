@@ -12,11 +12,12 @@ class Affectation extends Model
     protected $fillable = [
         'agent_id',
         'ancienne_direction',
-        'ancienne_service',
+        'ancien_service',
         'ancienne_fonction',
-        'nouvelle_direction',
-        'nouveau_service',
-        'nouvelle_fonction',
+        'ancienne_date_affectation',
+        'direction',
+        'service',
+        'fonction',
         'date_affectation',
     ];
 
