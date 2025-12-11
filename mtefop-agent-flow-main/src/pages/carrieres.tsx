@@ -89,7 +89,7 @@ export default function Carrieres() {
     createAffectationMutation.mutate({
       agent_id: agent.id,
       ancienne_direction: agent.direction ?? null,
-      ancien_service: agent.service ?? null,
+      ancienne_service: agent.service ?? null,
       ancienne_fonction: agent.fonction ?? null,
       direction: newDirection,
       service: newService,

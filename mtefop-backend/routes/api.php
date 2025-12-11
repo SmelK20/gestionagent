@@ -117,3 +117,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/promotions', [PromotionController::class, 'index']);
     Route::post('/promotions', [PromotionController::class, 'store']);
 });
+
+Route::middleware(['auth:sanctum', 'auth:agent'])->group(function () {
+    Route::get('/agent/conges', [CongeController::class, 'indexAgent']);
+    Route::post('/agent/conges', [CongeController::class, 'store']);
+});

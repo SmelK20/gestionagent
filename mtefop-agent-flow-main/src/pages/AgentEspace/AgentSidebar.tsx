@@ -7,7 +7,7 @@ const agentMenu = [
   { title: "Tableau de bord", url: "/agent/espace", icon: Home },
   { title: "Mon profil", url: "/agent/espace/profil", icon: User },
   { title: "Mes congés", url: "/agent/espace/conger", icon: Calendar },
-  { title: "Mes présences", url: "/agent/espace/presence", icon: Clock }, // ✅ nouvelle ligne
+  //{ title: "Mes présences", url: "/agent/espace/presence", icon: Clock }, // ✅ nouvelle ligne
   // Tu peux ajouter Documents et Notifications plus tard si tu crées les pages
 ];
 
