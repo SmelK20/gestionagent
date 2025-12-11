@@ -23,6 +23,7 @@ class Affectation extends Model
 
     public function agent()
     {
-        return $this->belongsTo(Agent::class);
+        // ⚠️ Si ton modèle d’agent s’appelle autrement, adapte ici
+        return $this->belongsTo(AgentNouveau::class, 'agent_id');
     }
 }
