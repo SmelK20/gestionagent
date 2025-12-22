@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable; // Pour Auth
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
 class AgentNouveau extends Authenticatable
@@ -34,26 +34,46 @@ class AgentNouveau extends Authenticatable
         'service_affectation',
         'date_affectation',
 
-        // Relations / hiérarchie
-        'ministere',
-        'direction',
-        'service',
-        'fonction',
+        // Relations (IDs)
+        'ministere_id',
+        'direction_id',
+        'service_id',
+        'fonction_id',
 
-        // 🔹 Nouveau champ pour mot de passe
+        // Mot de passe
         'mot_de_passe',
     ];
 
     protected $hidden = [
-        'mot_de_passe', // On cache le mot de passe
+        'mot_de_passe',
         'remember_token',
     ];
 
-    // 🔹 Mutator pour hasher automatiquement le mot de passe
     public function setMotDePasseAttribute($value)
     {
         if ($value) {
             $this->attributes['mot_de_passe'] = bcrypt($value);
         }
+    }
+
+    // ✅ Relations
+    public function direction()
+    {
+        return $this->belongsTo(Direction::class);
+    }
+
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function fonction()
+    {
+        return $this->belongsTo(Fonction::class);
+    }
+
+    public function ministere()
+    {
+        return $this->belongsTo(Ministere::class);
     }
 }

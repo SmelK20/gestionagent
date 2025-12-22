@@ -20,7 +20,8 @@ use App\Http\Controllers\{
     CongeController,
     PresenceController,
     AffectationController,
-    PromotionController
+    PromotionController,
+    AdminProfileController
 };
 
 /*
@@ -44,6 +45,10 @@ Route::middleware('auth:sanctum')->group(function () {
 // API.php
 Route::middleware('auth:sanctum')->get('/agents/profile', [AgentController::class, 'profile']);
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/agents_nouveau/export', [AgentNouveauController::class, 'export']);
+    Route::post('/agents_nouveau/import', [AgentNouveauController::class, 'import']);
+});
 
 // ===============================
 // 📦 RESSOURCES PRINCIPALES
@@ -121,4 +126,9 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(['auth:sanctum', 'auth:agent'])->group(function () {
     Route::get('/agent/conges', [CongeController::class, 'indexAgent']);
     Route::post('/agent/conges', [CongeController::class, 'store']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [AdminProfileController::class, 'show']);
+    Route::put('/admin/profile', [AdminProfileController::class, 'update']);
 });

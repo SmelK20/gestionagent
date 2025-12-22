@@ -35,7 +35,7 @@ const menuItems = [
   { title: "Agents", url: "/agentsnouveau", icon: UserPlus },
   { title: "Carrières", url: "/carrieres", icon: Briefcase },
   { title: "Congés", url: "/conges", icon: Calendar },
-  { title: "Rapports", url: "/statistiques", icon: BarChart3 },
+  //{ title: "Rapports", url: "/statistiques", icon: BarChart3 },
   { title: "Paramètres", url: "/parametres", icon: Settings },
 ];
 

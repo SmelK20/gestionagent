@@ -11,11 +11,18 @@ use App\Mail\AgentWelcomeMail;
 class AgentNouveauController extends Controller
 {
     /**
-     * Lister tous les agents
+     * Lister tous les agents (avec relations)
      */
     public function index()
     {
-        return response()->json(AgentNouveau::all());
+        return response()->json(
+            AgentNouveau::with([
+                'direction:id,libelle',
+                'service:id,libelle',
+                'fonction:id,libelle',
+                // 'ministere:id,libelle', // décommente si tu utilises ministere_id
+            ])->orderByDesc('id')->get()
+        );
     }
 
     /**
@@ -42,28 +49,44 @@ class AgentNouveauController extends Controller
                 'specialisation' => 'nullable|string|max:150',
                 'service_affectation' => 'nullable|string|max:150',
                 'date_affectation' => 'nullable|date',
-                'direction' => 'nullable|string|max:150',
-                'service' => 'nullable|string|max:150',
-                'fonction' => 'nullable|string|max:150',
+
+                // ✅ On enregistre les FK (IDs) et pas des strings
+                'direction_id' => 'nullable|integer|exists:directions,id',
+                'service_id'   => 'nullable|integer|exists:services,id',
+                'fonction_id'  => 'nullable|integer|exists:fonctions,id',
+
+                // ✅ si tu utilises une colonne texte ministere (comme ta capture)
+                'ministere' => 'nullable|string|max:150',
+
+                // ✅ si tu utilises un FK ministere_id, remplace ministere par :
+                // 'ministere_id' => 'nullable|integer|exists:ministeres,id',
             ]);
 
-            $validated['ministere'] = 'MTEFOP';
+            // ✅ Valeur par défaut (si tu as la colonne ministere en texte)
+            $validated['ministere'] = $validated['ministere'] ?? 'MTEFOP';
 
             // Génération du mot de passe
             $plainPassword = Str::random(12);
-            $validated['mot_de_passe'] = $plainPassword;
+            $validated['mot_de_passe'] = $plainPassword; // mutator => hash
 
-            // Création de l'agent
+            // Création
             $agent = AgentNouveau::create($validated);
 
-            // Envoi du mail si email fourni
+            // ✅ Charger relations pour éviter null côté frontend
+            $agent->load([
+                'direction:id,libelle',
+                'service:id,libelle',
+                'fonction:id,libelle',
+            ]);
+
+            // Email si présent
             if (!empty($agent->email)) {
                 Mail::to($agent->email)->send(new AgentWelcomeMail($agent, $plainPassword));
             }
 
             return response()->json([
                 'message' => 'Agent créé avec succès',
-                'agent' => $agent
+                'agent'   => $agent
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -73,7 +96,7 @@ class AgentNouveauController extends Controller
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'Erreur lors de la création de l’agent',
                 'details' => $e->getMessage()
             ], 500);
@@ -81,11 +104,16 @@ class AgentNouveauController extends Controller
     }
 
     /**
-     * Afficher un agent précis
+     * Afficher un agent précis (avec relations)
      */
     public function show($id)
     {
-        $agent = AgentNouveau::findOrFail($id);
+        $agent = AgentNouveau::with([
+            'direction:id,libelle',
+            'service:id,libelle',
+            'fonction:id,libelle',
+        ])->findOrFail($id);
+
         return response()->json($agent);
     }
 
@@ -114,14 +142,27 @@ class AgentNouveauController extends Controller
             'specialisation' => 'nullable|string|max:150',
             'service_affectation' => 'nullable|string|max:150',
             'date_affectation' => 'nullable|date',
-            'direction' => 'nullable|string|max:150',
-            'service' => 'nullable|string|max:150',
-            'fonction' => 'nullable|string|max:150',
+
+            // ✅ FK
+            'direction_id' => 'nullable|integer|exists:directions,id',
+            'service_id'   => 'nullable|integer|exists:services,id',
+            'fonction_id'  => 'nullable|integer|exists:fonctions,id',
+
+            // colonne texte ministere
+            'ministere' => 'nullable|string|max:150',
         ]);
 
-        $validated['ministere'] = 'MTEFOP';
+        // ✅ par défaut (si tu veux toujours MTEFOP)
+        $validated['ministere'] = $validated['ministere'] ?? ($agent->ministere ?? 'MTEFOP');
 
         $agent->update($validated);
+
+        // ✅ inclure les relations dans la réponse
+        $agent->load([
+            'direction:id,libelle',
+            'service:id,libelle',
+            'fonction:id,libelle',
+        ]);
 
         return response()->json($agent);
     }
@@ -133,5 +174,152 @@ class AgentNouveauController extends Controller
     {
         AgentNouveau::destroy($id);
         return response()->json(['message' => 'Agent supprimé avec succès']);
+    }
+
+    /**
+     * Exporter la liste des agents au format CSV
+     */
+    public function export()
+    {
+        $fileName = 'agents_' . now()->format('Ymd_His') . '.csv';
+
+        $columns = [
+            'immatricule',
+            'nom',
+            'prenom',
+            'email',
+            'telephone',
+            'corps',
+            'grade',
+            'categorie',
+            'service_affectation',
+            'date_affectation',
+        ];
+
+        $agents = AgentNouveau::all($columns);
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=utf-8',
+            'Content-Disposition' => "attachment; filename=\"$fileName\"",
+            'Pragma'              => 'no-cache',
+            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires'             => '0',
+        ];
+
+        $callback = function () use ($agents, $columns) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $columns, ';');
+
+            foreach ($agents as $agent) {
+                $row = [];
+                foreach ($columns as $col) {
+                    $row[] = $agent->$col;
+                }
+                fputcsv($handle, $row, ';');
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Importer une liste d’agents depuis un CSV
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt'],
+        ]);
+
+        $file = $request->file('file');
+
+        if (!$file->isValid()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Fichier invalide.',
+            ], 422);
+        }
+
+        $path = $file->getRealPath();
+        $handle = fopen($path, 'r');
+
+        if ($handle === false) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Impossible de lire le fichier.',
+            ], 500);
+        }
+
+        $delimiter = ';';
+        $headers = fgetcsv($handle, 0, $delimiter);
+
+        if (!$headers) {
+            fclose($handle);
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Le fichier ne contient pas d’entêtes.',
+            ], 422);
+        }
+
+        $headers = array_map(fn ($h) => strtolower(trim($h)), $headers);
+
+        $created = 0;
+        $updated = 0;
+        $errors  = [];
+
+        while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+            if (count($row) !== count($headers)) {
+                $errors[] = 'Ligne ignorée (nombre de colonnes incorrect).';
+                continue;
+            }
+
+            $data = array_combine($headers, $row);
+
+            if (empty($data['immatricule'])) {
+                $errors[] = 'Ligne ignorée : immatricule manquant.';
+                continue;
+            }
+
+            $agent = AgentNouveau::where('immatricule', $data['immatricule'])->first();
+
+            $payload = [
+                'immatricule'         => $data['immatricule'] ?? null,
+                'nom'                 => $data['nom'] ?? null,
+                'prenom'              => $data['prenom'] ?? null,
+                'email'               => $data['email'] ?? null,
+                'telephone'           => $data['telephone'] ?? null,
+                'corps'               => $data['corps'] ?? null,
+                'grade'               => $data['grade'] ?? null,
+                'categorie'           => $data['categorie'] ?? null,
+                'service_affectation' => $data['service_affectation'] ?? null,
+                'date_affectation'    => $data['date_affectation'] ?? null,
+                'ministere'           => 'MTEFOP',
+            ];
+
+            try {
+                if ($agent) {
+                    $agent->update($payload);
+                    $updated++;
+                } else {
+                    $plainPassword = Str::random(12);
+                    $payload['mot_de_passe'] = $plainPassword;
+                    AgentNouveau::create($payload);
+                    $created++;
+                }
+            } catch (\Exception $e) {
+                $errors[] = 'Erreur sur immatricule ' . $data['immatricule'] . ' : ' . $e->getMessage();
+            }
+        }
+
+        fclose($handle);
+
+        return response()->json([
+            'status'  => 'ok',
+            'created' => $created,
+            'updated' => $updated,
+            'errors'  => $errors,
+        ]);
     }
 }

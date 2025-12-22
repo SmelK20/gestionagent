@@ -7,25 +7,38 @@ use Illuminate\Http\Request;
 
 class DirectionController extends Controller
 {
-    public function index() {
-        return Direction::with('ministere')->get();
+    public function index()
+    {
+        return Direction::orderBy('libelle')->get();
     }
 
-    public function store(Request $request) {
-        $validated = $request->validate([
-            'nom' => 'required|string',
-            'ministere_id' => 'required|exists:ministeres,id'
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'libelle' => 'required|string|max:150|unique:directions,libelle',
         ]);
-        return Direction::create($validated);
+
+        return Direction::create($data);
     }
 
-    public function update(Request $request, Direction $direction) {
-        $direction->update($request->only('nom', 'ministere_id'));
+    public function update(Request $request, $id)
+    {
+        $direction = Direction::findOrFail($id);
+
+        $data = $request->validate([
+            'libelle' => 'required|string|max:150|unique:directions,libelle,' . $id,
+        ]);
+
+        $direction->update($data);
+
         return $direction;
     }
 
-    public function destroy(Direction $direction) {
+    public function destroy($id)
+    {
+        $direction = Direction::findOrFail($id);
         $direction->delete();
+
         return response()->json(['message' => 'Direction supprimée']);
     }
 }

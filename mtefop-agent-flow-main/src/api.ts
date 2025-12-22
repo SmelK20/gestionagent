@@ -95,3 +95,121 @@ export async function pointerPresence(type: "arrivee" | "depart") {
   );
   return res.data;
 }
+
+// === IMPORT / EXPORT AGENTS_NOUVEAU ===
+export async function exportAgentsNouveau() {
+  const token = localStorage.getItem("token");
+  const res = await api.get("/agents_nouveau/export", {
+    headers: { Authorization: `Bearer ${token}` },
+    responseType: "blob", // important pour télécharger un fichier
+  });
+  return res.data;
+}
+
+export async function importAgentsNouveau(file: File) {
+  const token = localStorage.getItem("token");
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await api.post("/agents_nouveau/import", formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return res.data;
+}
+function authHeaders() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function getDirections() {
+  const res = await api.get("/directions", { headers: authHeaders() });
+  return res.data;
+}
+export async function createDirection(data: { libelle: string }) {
+  const res = await api.post("/directions", data, { headers: authHeaders() });
+  return res.data;
+}
+export async function updateDirection(id: number, data: { libelle: string }) {
+  const res = await api.put(`/directions/${id}`, data, { headers: authHeaders() });
+  return res.data;
+}
+export async function deleteDirection(id: number) {
+  const res = await api.delete(`/directions/${id}`, { headers: authHeaders() });
+  return res.data;
+}
+
+export async function getServicesList() {
+  const res = await api.get("/services", { headers: authHeaders() });
+  return res.data;
+}
+export async function createService(data: { libelle: string }) {
+  const res = await api.post("/services", data, { headers: authHeaders() });
+  return res.data;
+}
+export async function updateService(id: number, data: { libelle: string }) {
+  const res = await api.put(`/services/${id}`, data, { headers: authHeaders() });
+  return res.data;
+}
+export async function deleteService(id: number) {
+  const res = await api.delete(`/services/${id}`, { headers: authHeaders() });
+  return res.data;
+}
+
+export async function getFonctions() {
+  const res = await api.get("/fonctions", { headers: authHeaders() });
+  return res.data;
+}
+export async function createFonction(data: { libelle: string }) {
+  const res = await api.post("/fonctions", data, { headers: authHeaders() });
+  return res.data;
+}
+export async function updateFonction(id: number, data: { libelle: string }) {
+  const res = await api.put(`/fonctions/${id}`, data, { headers: authHeaders() });
+  return res.data;
+}
+export async function deleteFonction(id: number) {
+  const res = await api.delete(`/fonctions/${id}`, { headers: authHeaders() });
+  return res.data;
+}
+
+// === PROFIL ADMIN ===
+export type AdminProfile = {
+  id: number;
+  nom: string;
+  email: string;
+};
+
+// ✅ payload flexible: soit nom/email, soit mdp, soit les deux
+export type UpdateAdminProfilePayload = {
+  nom?: string;
+  email?: string;
+
+  current_password?: string;
+  password?: string;
+  password_confirmation?: string;
+};
+
+export async function getAdminProfile(): Promise<AdminProfile> {
+  const token = localStorage.getItem("token");
+  const res = await api.get("/profile", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
+
+export async function updateAdminProfile(
+  data: UpdateAdminProfilePayload
+): Promise<AdminProfile> {
+  const token = localStorage.getItem("token");
+
+  const res = await api.put("/admin/profile", data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  return res.data;
+}
+

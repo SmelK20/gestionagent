@@ -7,25 +7,38 @@ use Illuminate\Http\Request;
 
 class ServiceController extends Controller
 {
-    public function index() {
-        return Service::with('direction')->get();
+    public function index()
+    {
+        return Service::orderBy('libelle')->get();
     }
 
-    public function store(Request $request) {
-        $validated = $request->validate([
-            'nom' => 'required|string',
-            'direction_id' => 'required|exists:directions,id'
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'libelle' => 'required|string|max:150|unique:services,libelle',
         ]);
-        return Service::create($validated);
+
+        return Service::create($data);
     }
 
-    public function update(Request $request, Service $service) {
-        $service->update($request->only('nom', 'direction_id'));
+    public function update(Request $request, $id)
+    {
+        $service = Service::findOrFail($id);
+
+        $data = $request->validate([
+            'libelle' => 'required|string|max:150|unique:services,libelle,' . $id,
+        ]);
+
+        $service->update($data);
+
         return $service;
     }
 
-    public function destroy(Service $service) {
+    public function destroy($id)
+    {
+        $service = Service::findOrFail($id);
         $service->delete();
+
         return response()->json(['message' => 'Service supprimé']);
     }
 }
