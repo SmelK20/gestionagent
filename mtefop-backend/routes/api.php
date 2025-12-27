@@ -21,6 +21,7 @@ use App\Http\Controllers\{
     PresenceController,
     AffectationController,
     PromotionController,
+    AttestationRequestController,
     AdminProfileController
 };
 
@@ -131,4 +132,17 @@ Route::middleware(['auth:sanctum', 'auth:agent'])->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [AdminProfileController::class, 'show']);
     Route::put('/admin/profile', [AdminProfileController::class, 'update']);
+});
+
+
+Route::middleware('auth:sanctum')->group(function () {
+
+  // ✅ Agent
+  Route::get('/v1/attestations/my', [AttestationRequestController::class, 'myRequests']);
+  Route::post('/v1/attestations', [AttestationRequestController::class, 'store']);
+  Route::get('/v1/attestations/{id}/download', [AttestationRequestController::class, 'download']);
+
+  // ✅ Admin (à sécuriser avec middleware admin)
+  Route::get('/v1/admin/attestations', [AttestationRequestController::class, 'index']);
+  Route::post('/v1/admin/attestations/{id}/review', [AttestationRequestController::class, 'review']);
 });

@@ -23,15 +23,16 @@ export function Layout({ children }: LayoutProps) {
 
   // Fonction pour déconnexion
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Supprime le token
-    navigate("/login"); // Redirige vers la page login
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    navigate("/login");
   };
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
-        
+
         <div className="flex-1 flex flex-col">
           {/* Header */}
           <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
@@ -50,10 +51,11 @@ export function Layout({ children }: LayoutProps) {
 
               <div className="flex items-center space-x-2">
                 {/* Dark mode toggle */}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="relative"
                 >
                   <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                   <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -63,7 +65,7 @@ export function Layout({ children }: LayoutProps) {
                 {/* Notifications */}
                 <Button variant="ghost" size="sm" className="relative">
                   <Bell className="h-4 w-4" />
-                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full text-xs flex items-center justify-center text-destructive-foreground">
+                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full text-[10px] flex items-center justify-center text-destructive-foreground">
                     3
                   </span>
                 </Button>
@@ -71,18 +73,25 @@ export function Layout({ children }: LayoutProps) {
                 {/* User menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center space-x-2"
+                    >
                       <User className="h-4 w-4" />
                       <span className="hidden md:inline">Admin</span>
                     </Button>
                   </DropdownMenuTrigger>
+
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
+
+                    <DropdownMenuItem onClick={() => navigate("/parametres")}>
                       <User className="mr-2 h-4 w-4" />
                       Profil
                     </DropdownMenuItem>
+
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="mr-2 h-4 w-4" />
                       Déconnexion
@@ -94,9 +103,7 @@ export function Layout({ children }: LayoutProps) {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 p-6">
-            {children}
-          </main>
+          <main className="flex-1 p-6">{children}</main>
         </div>
       </div>
     </SidebarProvider>

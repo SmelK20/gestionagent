@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { 
   Users, 
   Briefcase, 
@@ -12,7 +11,8 @@ import {
   Home,
   ChevronLeft,
   Clock,
-  ChevronRight
+  ChevronRight,
+  FileCheck2
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -35,6 +35,10 @@ const menuItems = [
   { title: "Agents", url: "/agentsnouveau", icon: UserPlus },
   { title: "Carrières", url: "/carrieres", icon: Briefcase },
   { title: "Congés", url: "/conges", icon: Calendar },
+
+  // ✅ NOUVEAU : Attestations (Admin)
+  { title: "Attestations", url: "/admin/attestations", icon: FileCheck2 },
+
   //{ title: "Rapports", url: "/statistiques", icon: BarChart3 },
   { title: "Paramètres", url: "/parametres", icon: Settings },
 ];
@@ -46,9 +50,7 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => {
-    if (path === "/") {
-      return currentPath === "/";
-    }
+    if (path === "/") return currentPath === "/";
     return currentPath.startsWith(path);
   };
 
@@ -65,9 +67,9 @@ export function AppSidebar() {
         {/* Header avec logo */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center space-x-2">
-            <img 
-              src={mtefopLogo} 
-              alt="MTEFOP" 
+            <img
+              src={mtefopLogo}
+              alt="MTEFOP"
               className={`transition-all duration-200 ${
                 isCollapsed ? "h-8 w-8" : "h-10 w-auto"
               }`}
@@ -85,15 +87,18 @@ export function AppSidebar() {
           <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
             Navigation principale
           </SidebarGroupLabel>
+
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      end={item.url === "/"} 
-                      className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 ${getNavClasses(item.url)}`}
+                    <NavLink
+                      to={item.url}
+                      end={item.url === "/"}
+                      className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 ${getNavClasses(
+                        item.url
+                      )}`}
                     >
                       <item.icon className="h-4 w-4 flex-shrink-0" />
                       {!isCollapsed && (

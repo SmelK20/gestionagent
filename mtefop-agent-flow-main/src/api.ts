@@ -213,3 +213,47 @@ export async function updateAdminProfile(
   return res.data;
 }
 
+
+export type AttestationStatus = "EN_ATTENTE" | "APPROUVEE" | "REFUSEE";
+
+export type AttestationRequest = {
+  id: number;
+  request_number: string;
+  type: string;
+  motif: string | null;
+  status: AttestationStatus;
+  admin_comment: string | null;
+  reviewed_at: string | null;
+  generated_at: string | null;
+  pdf_path: string | null;
+  created_at: string;
+  agent?: any; // pour admin list
+};
+
+export async function getMyAttestations() {
+  const res = await api.get("/v1/attestations/my");
+  return res.data as AttestationRequest[];
+}
+
+export async function createAttestation(payload: { type: string; motif?: string }) {
+  const res = await api.post("/v1/attestations", payload);
+  return res.data as AttestationRequest;
+}
+
+export async function downloadAttestation(id: number) {
+  const res = await api.get(`/v1/attestations/${id}/download`, {
+    responseType: "blob",
+  });
+  return res.data as Blob;
+}
+
+// ADMIN
+export async function getAdminAttestations() {
+  const res = await api.get("/v1/admin/attestations");
+  return res.data as AttestationRequest[];
+}
+
+export async function reviewAttestation(id: number, payload: { action: "APPROUVER" | "REFUSER"; admin_comment?: string }) {
+  const res = await api.post(`/v1/admin/attestations/${id}/review`, payload);
+  return res.data as AttestationRequest;
+}

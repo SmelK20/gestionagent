@@ -10,7 +10,6 @@ import Dashboard from "./pages/Dashboard";
 import Agents from "./pages/Agents";
 import Missions from "./pages/Missions";
 import Conges from "./pages/Conges";
-import Documents from "./pages/Documents";
 import Administration from "./pages/Administration";
 import Besoins from "./pages/Besoins";
 import Notifications from "./pages/Notifications";
@@ -18,16 +17,21 @@ import Statistiques from "./pages/Statistiques";
 import Parametres from "./pages/Parametres";
 import NotFound from "./pages/NotFound";
 import Agentsnouveau from "@/pages/Agentsnouveau";
-import Presences from "./pages/Presence"; // ✅ ajouté
+import Presences from "./pages/Presence";
 import Carrieres from "./pages/carrieres";
+
+// ✅ NOUVEAU : Admin Attestations
+import AdminAttestations from "./pages/AgentEspace/AdminAttestations";
 
 // Pages Agent
 import AgentLayout from "./pages/AgentEspace/AgentLayout";
 import AgentDashboard from "./pages/AgentEspace/AgentDashbord";
 import AgentProfil from "./pages/AgentEspace/AgentProfil";
 import AgentConger from "./pages/AgentEspace/Conger";
-import AgentPresence from "./pages/AgentEspace/AgentPresence"; // ✅ ajouté
+import AgentPresence from "./pages/AgentEspace/AgentPresence";
 
+// ✅ NOUVEAU : Documents & Attestations (Agent)
+import DocumentsAttestations from "./pages/AgentEspace/DocumentsAttestations";
 
 // Login (Admin + Agent)
 import Login from "./pages/Login";
@@ -70,7 +74,10 @@ const App = () => (
             <Route index element={<AgentDashboard />} />
             <Route path="profil" element={<AgentProfil />} />
             <Route path="conger" element={<AgentConger />} />
-            <Route path="presence" element={<AgentPresence />} /> {/* ✅ ajouté */}
+            <Route path="presence" element={<AgentPresence />} />
+
+            {/* ✅ NOUVEAU */}
+            <Route path="documents" element={<DocumentsAttestations />} />
           </Route>
 
           {/* 🧭 Espace ADMIN */}
@@ -84,15 +91,18 @@ const App = () => (
                     <Route path="/agents" element={<Agents />} />
                     <Route path="/missions" element={<Missions />} />
                     <Route path="/conges" element={<Conges />} />
-                    <Route path="/documents" element={<Documents />} />
                     <Route path="/administration" element={<Administration />} />
                     <Route path="/besoins" element={<Besoins />} />
                     <Route path="/notifications" element={<Notifications />} />
                     <Route path="/statistiques" element={<Statistiques />} />
                     <Route path="/parametres" element={<Parametres />} />
                     <Route path="/agentsnouveau" element={<Agentsnouveau />} />
-                    <Route path="/presences" element={<Presences />} /> {/* ✅ ajouté */}
+                    <Route path="/presences" element={<Presences />} />
                     <Route path="/carrieres" element={<Carrieres />} />
+
+                    {/* ✅ NOUVEAU */}
+                    <Route path="/admin/attestations" element={<AdminAttestations />} />
+
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Layout>
