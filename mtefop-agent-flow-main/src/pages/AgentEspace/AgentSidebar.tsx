@@ -1,5 +1,15 @@
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
-import { Home, User, Calendar,Clock , Bell, FileText } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Home, User, Calendar, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import mtefopLogo from "@/assets/mtefop-logo.png";
 
@@ -7,10 +17,10 @@ const agentMenu = [
   { title: "Tableau de bord", url: "/agent/espace", icon: Home },
   { title: "Mon profil", url: "/agent/espace/profil", icon: User },
   { title: "Mes congés", url: "/agent/espace/conger", icon: Calendar },
-  //{ title: "Mes présences", url: "/agent/espace/presence", icon: Clock }, // ✅ nouvelle ligne
-  // Tu peux ajouter Documents et Notifications plus tard si tu crées les pages
-];
 
+  // ✅ NOUVEAU : Documents & Attestations
+  { title: "Attestations", url: "/agent/espace/documents", icon: FileText },
+];
 
 export function AgentSidebar() {
   const { state } = useSidebar();
@@ -18,8 +28,15 @@ export function AgentSidebar() {
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
 
+  const isActive = (path: string) => {
+    if (path === "/agent/espace") {
+      return currentPath === "/agent/espace" || currentPath === "/agent/espace/";
+    }
+    return currentPath.startsWith(path);
+  };
+
   const getNavClasses = (path: string) => {
-    if (currentPath === path) {
+    if (isActive(path)) {
       return "bg-gradient-primary text-primary-foreground font-medium shadow-soft";
     }
     return "hover:bg-secondary/60 text-foreground/80 hover:text-foreground transition-colors";
@@ -52,6 +69,7 @@ export function AgentSidebar() {
           <SidebarGroupLabel className={isCollapsed ? "sr-only" : ""}>
             Navigation
           </SidebarGroupLabel>
+
           <SidebarGroupContent>
             <SidebarMenu>
               {agentMenu.map((item) => (
@@ -59,11 +77,12 @@ export function AgentSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
+                      end={item.url === "/agent/espace"}
                       className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 ${getNavClasses(
                         item.url
                       )}`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
                       {!isCollapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>

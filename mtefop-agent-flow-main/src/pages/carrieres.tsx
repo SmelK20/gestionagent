@@ -2,10 +2,26 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpCircle, Shuffle, UserCircle2, Building2 } from "lucide-react";
+import {
+  Plus,
+  ArrowUpCircle,
+  Shuffle,
+  UserCircle2,
+  Building2,
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAgentsNouveau, getAffectations, createAffectation } from "@/api";
+import api, { getAgentsNouveau, getAffectations, createAffectation } from "@/api";
 import { useToast } from "@/hooks/use-toast";
+
+type RefItem = { id: number; libelle: string };
+type MaybeLabel = string | RefItem | null | undefined;
+
+const labelOf = (v: MaybeLabel) => {
+  if (!v) return "—";
+  if (typeof v === "string") return v;
+  if (typeof v === "object" && "libelle" in v) return v.libelle ?? "—";
+  return "—";
+};
 
 export default function Carrieres() {
   const [activeTab, setActiveTab] = useState("affectations");
@@ -14,9 +30,10 @@ export default function Carrieres() {
   const [showAffectationForm, setShowAffectationForm] = useState(false);
   const [showPromotionForm, setShowPromotionForm] = useState(false);
 
-  const [newDirection, setNewDirection] = useState("");
-  const [newService, setNewService] = useState("");
-  const [newFonction, setNewFonction] = useState("");
+  // ✅ en sélection : on stocke les IDs
+  const [newDirectionId, setNewDirectionId] = useState<number | "">("");
+  const [newServiceId, setNewServiceId] = useState<number | "">("");
+  const [newFonctionId, setNewFonctionId] = useState<number | "">("");
   const [affectationDate, setAffectationDate] = useState("");
 
   const { toast } = useToast();
@@ -33,12 +50,34 @@ export default function Carrieres() {
   });
 
   // Affectations (historique)
-  const {
-    data: affectations,
-    isLoading: isLoadingAffectations,
-  } = useQuery({
+  const { data: affectations, isLoading: isLoadingAffectations } = useQuery({
     queryKey: ["affectations"],
     queryFn: getAffectations,
+  });
+
+  // ✅ Référentiels
+  const { data: directions = [], isLoading: isLoadingDirections } = useQuery({
+    queryKey: ["directions"],
+    queryFn: async () => {
+      const res = await api.get("/directions");
+      return (res.data || []) as RefItem[];
+    },
+  });
+
+  const { data: services = [], isLoading: isLoadingServices } = useQuery({
+    queryKey: ["services"],
+    queryFn: async () => {
+      const res = await api.get("/services");
+      return (res.data || []) as RefItem[];
+    },
+  });
+
+  const { data: fonctions = [], isLoading: isLoadingFonctions } = useQuery({
+    queryKey: ["fonctions"],
+    queryFn: async () => {
+      const res = await api.get("/fonctions");
+      return (res.data || []) as RefItem[];
+    },
   });
 
   const selectedAgent = agents?.find((a: any) => a.id === selectedAgentId);
@@ -53,9 +92,9 @@ export default function Carrieres() {
       queryClient.invalidateQueries({ queryKey: ["affectations"] });
       queryClient.invalidateQueries({ queryKey: ["agents_nouveau"] });
 
-      setNewDirection("");
-      setNewService("");
-      setNewFonction("");
+      setNewDirectionId("");
+      setNewServiceId("");
+      setNewFonctionId("");
       setAffectationDate("");
       setShowAffectationForm(false);
       setSelectedAgentId(null);
@@ -74,7 +113,8 @@ export default function Carrieres() {
 
   const handleSaveAffectation = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAgentId || !newDirection || !newService || !newFonction || !affectationDate) {
+
+    if (!selectedAgentId || !newDirectionId || !newServiceId || !newFonctionId || !affectationDate) {
       toast({
         variant: "destructive",
         title: "Champs incomplets",
@@ -86,14 +126,32 @@ export default function Carrieres() {
     const agent = agents?.find((a: any) => a.id === selectedAgentId);
     if (!agent) return;
 
+    // ✅ Convertir ID -> libelle pour envoyer à l’API (string)
+    const dir = directions.find((d) => d.id === newDirectionId);
+    const serv = services.find((s) => s.id === newServiceId);
+    const fonc = fonctions.find((f) => f.id === newFonctionId);
+
+    if (!dir || !serv || !fonc) {
+      toast({
+        variant: "destructive",
+        title: "Référentiel invalide",
+        description: "Direction/Service/Fonction introuvable. Recharge la page.",
+      });
+      return;
+    }
+
     createAffectationMutation.mutate({
       agent_id: agent.id,
-      ancienne_direction: agent.direction ?? null,
-      ancienne_service: agent.service ?? null,
-      ancienne_fonction: agent.fonction ?? null,
-      direction: newDirection,
-      service: newService,
-      fonction: newFonction,
+
+      // anciennes valeurs (peuvent être string/objet/null)
+      ancienne_direction: labelOf(agent.direction) === "—" ? null : labelOf(agent.direction),
+      ancienne_service: labelOf(agent.service) === "—" ? null : labelOf(agent.service),
+      ancienne_fonction: labelOf(agent.fonction) === "—" ? null : labelOf(agent.fonction),
+
+      // nouvelles valeurs (strings)
+      direction: dir.libelle,
+      service: serv.libelle,
+      fonction: fonc.libelle,
       date_affectation: affectationDate,
     });
   };
@@ -150,9 +208,7 @@ export default function Carrieres() {
 
               <CardContent>
                 {isLoadingAgents && (
-                  <p className="text-sm text-muted-foreground">
-                    Chargement des agents...
-                  </p>
+                  <p className="text-sm text-muted-foreground">Chargement des agents...</p>
                 )}
 
                 {agentsError && (
@@ -162,10 +218,7 @@ export default function Carrieres() {
                 )}
 
                 {showAffectationForm && (
-                  <form
-                    className="space-y-4 mt-2"
-                    onSubmit={handleSaveAffectation}
-                  >
+                  <form className="space-y-4 mt-2" onSubmit={handleSaveAffectation}>
                     {/* Agent + situation actuelle */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Agent</label>
@@ -173,9 +226,7 @@ export default function Carrieres() {
                         className="input w-full rounded-md border px-3 py-2 text-sm"
                         value={selectedAgentId || ""}
                         onChange={(e) =>
-                          setSelectedAgentId(
-                            e.target.value ? Number(e.target.value) : null
-                          )
+                          setSelectedAgentId(e.target.value ? Number(e.target.value) : null)
                         }
                       >
                         <option value="">Sélectionnez un agent</option>
@@ -197,63 +248,82 @@ export default function Carrieres() {
                           <div className="flex flex-wrap gap-4 text-[11px] mt-1">
                             <span>
                               <span className="font-semibold">Direction :</span>{" "}
-                              {selectedAgent.direction || "—"}
+                              {labelOf(selectedAgent.direction)}
                             </span>
                             <span>
                               <span className="font-semibold">Service :</span>{" "}
-                              {selectedAgent.service || "—"}
+                              {labelOf(selectedAgent.service)}
                             </span>
                             <span>
                               <span className="font-semibold">Fonction :</span>{" "}
-                              {selectedAgent.fonction || "—"}
+                              {labelOf(selectedAgent.fonction)}
                             </span>
                           </div>
                         </div>
                       )}
                     </div>
 
-                    {/* Nouvelles infos */}
+                    {/* ✅ Nouvelles infos en sélection */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-sm font-medium">
-                          Nouvelle direction
-                        </label>
-                        <input
-                          type="text"
+                        <label className="text-sm font-medium">Nouvelle direction</label>
+                        <select
                           className="input w-full rounded-md border px-3 py-2 text-sm"
-                          placeholder="Ex : DSI, DRH..."
-                          value={newDirection}
-                          onChange={(e) => setNewDirection(e.target.value)}
-                        />
+                          value={newDirectionId}
+                          onChange={(e) => setNewDirectionId(e.target.value ? Number(e.target.value) : "")}
+                          disabled={isLoadingDirections}
+                        >
+                          <option value="">
+                            {isLoadingDirections ? "Chargement..." : "Sélectionner"}
+                          </option>
+                          {directions.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.libelle}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+
                       <div className="space-y-1">
-                        <label className="text-sm font-medium">
-                          Nouveau service
-                        </label>
-                        <input
-                          type="text"
+                        <label className="text-sm font-medium">Nouveau service</label>
+                        <select
                           className="input w-full rounded-md border px-3 py-2 text-sm"
-                          placeholder="Ex : Support, Développement..."
-                          value={newService}
-                          onChange={(e) => setNewService(e.target.value)}
-                        />
+                          value={newServiceId}
+                          onChange={(e) => setNewServiceId(e.target.value ? Number(e.target.value) : "")}
+                          disabled={isLoadingServices}
+                        >
+                          <option value="">
+                            {isLoadingServices ? "Chargement..." : "Sélectionner"}
+                          </option>
+                          {services.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.libelle}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+
                       <div className="space-y-1">
-                        <label className="text-sm font-medium">
-                          Nouvelle fonction
-                        </label>
-                        <input
-                          type="text"
+                        <label className="text-sm font-medium">Nouvelle fonction</label>
+                        <select
                           className="input w-full rounded-md border px-3 py-2 text-sm"
-                          placeholder="Ex : Technicien, Chef de service..."
-                          value={newFonction}
-                          onChange={(e) => setNewFonction(e.target.value)}
-                        />
+                          value={newFonctionId}
+                          onChange={(e) => setNewFonctionId(e.target.value ? Number(e.target.value) : "")}
+                          disabled={isLoadingFonctions}
+                        >
+                          <option value="">
+                            {isLoadingFonctions ? "Chargement..." : "Sélectionner"}
+                          </option>
+                          {fonctions.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.libelle}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+
                       <div className="space-y-1">
-                        <label className="text-sm font-medium">
-                          Date d’affectation
-                        </label>
+                        <label className="text-sm font-medium">Date d’affectation</label>
                         <input
                           type="date"
                           className="input w-full rounded-md border px-3 py-2 text-sm"
@@ -264,10 +334,7 @@ export default function Carrieres() {
                     </div>
 
                     <div className="flex justify-end pt-2">
-                      <Button
-                        type="submit"
-                        disabled={createAffectationMutation.isPending}
-                      >
+                      <Button type="submit" disabled={createAffectationMutation.isPending}>
                         {createAffectationMutation.isPending
                           ? "Enregistrement..."
                           : "Enregistrer l’affectation"}
@@ -292,11 +359,10 @@ export default function Carrieres() {
                   Historique des affectations
                 </CardTitle>
               </CardHeader>
+
               <CardContent className="space-y-3 max-h-[460px] overflow-y-auto">
                 {isLoadingAffectations ? (
-                  <p className="text-sm text-muted-foreground">
-                    Chargement de l’historique...
-                  </p>
+                  <p className="text-sm text-muted-foreground">Chargement de l’historique...</p>
                 ) : !affectations || affectations.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Aucune affectation enregistrée pour le moment.
@@ -310,34 +376,28 @@ export default function Carrieres() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="text-sm font-medium">
-                            {aff.agent
-                              ? `${aff.agent.nom} ${aff.agent.prenom}`
-                              : "Agent inconnu"}
+                            {aff.agent ? `${aff.agent.nom} ${aff.agent.prenom}` : "Agent inconnu"}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             Date : {aff.date_affectation}
                           </div>
                         </div>
+
                         <div className="text-xs text-muted-foreground">
                           <span className="font-semibold">Avant :</span>{" "}
-                          direction : {aff.ancienne_direction || "—"} /
-                          {" "}service : {aff.ancien_service || "—"} /
-                          {" "}fonction : {aff.ancienne_fonction || "—"}
+                          direction : {labelOf(aff.ancienne_direction)} /{" "}
+                          service : {labelOf(aff.ancien_service)} /{" "}
+                          fonction : {labelOf(aff.ancienne_fonction)}
                         </div>
+
                         <div className="text-xs">
                           <span className="font-semibold">Après :</span>{" "}
                           direction :{" "}
-                          <span className="font-semibold text-primary">
-                            {aff.direction}
-                          </span>
-                          {" "} / service :{" "}
-                          <span className="font-semibold text-primary">
-                            {aff.service}
-                          </span>
-                          {" "} / fonction :{" "}
-                          <span className="font-semibold text-primary">
-                            {aff.fonction}
-                          </span>
+                          <span className="font-semibold text-primary">{labelOf(aff.direction)}</span>{" "}
+                          / service :{" "}
+                          <span className="font-semibold text-primary">{labelOf(aff.service)}</span>{" "}
+                          / fonction :{" "}
+                          <span className="font-semibold text-primary">{labelOf(aff.fonction)}</span>
                         </div>
                       </div>
                     ))}
@@ -350,7 +410,6 @@ export default function Carrieres() {
 
         {/* === PROMOTIONS === */}
         <TabsContent value="promotions" className="mt-4">
-          {/* Tu pourras appliquer la même logique ici plus tard */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
