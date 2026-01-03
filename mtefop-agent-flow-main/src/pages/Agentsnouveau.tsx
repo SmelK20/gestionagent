@@ -1,5 +1,5 @@
 // mtefop-agent-flow-main/src/pages/Agentsnouveau.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -26,8 +26,8 @@ import {
   MoreHorizontal,
   Mail,
   Phone,
-  Upload,
   Download,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,7 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import api, { exportAgentsNouveau, importAgentsNouveau } from "@/api";
+import api, { exportAgentsNouveau } from "@/api";
 import {
   Dialog,
   DialogContent,
@@ -47,8 +47,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 type RefItem = { id: number; libelle: string };
-
-// ✅ Ce que l’API peut renvoyer côté agents_nouveau (on tolère plusieurs formes)
 type LibelleObj = { id: number; libelle: string };
 
 interface AgentNouveau {
@@ -71,21 +69,17 @@ interface AgentNouveau {
   service_affectation: string;
   date_affectation: string;
 
-  // ⚠️ selon ton backend, ça peut être ministere (string) ou ministere_id
   ministere?: string;
   ministere_id?: number | null;
 
-  // ✅ nouvelle structure (FK)
   direction_id?: number | null;
   service_id?: number | null;
   fonction_id?: number | null;
 
-  // ✅ parfois l’API renvoie aussi les relations (optionnel)
   direction?: LibelleObj | string | null;
   service?: LibelleObj | string | null;
   fonction?: LibelleObj | string | null;
 
-  // ⚠️ mot de passe masqué en principe
   mot_de_passe?: string;
 }
 
@@ -104,17 +98,20 @@ function getLibelle(value: AgentNouveau["direction"]): string {
 export default function Agentsnouveau() {
   const [agents, setAgents] = useState<AgentNouveau[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // ✅ Filtres (triage) direction/service/fonction
+  const [filterDirectionId, setFilterDirectionId] = useState<string | number>("");
+  const [filterServiceId, setFilterServiceId] = useState<string | number>("");
+  const [filterFonctionId, setFilterFonctionId] = useState<string | number>("");
+
   const [open, setOpen] = useState(false);
   const [openProfil, setOpenProfil] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentNouveau | null>(null);
   const [editingAgent, setEditingAgent] = useState<AgentNouveau | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  // Import / export
-  const [openImportDialog, setOpenImportDialog] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
+  // Export
   const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
 
   // ✅ Référentiels
   const [directions, setDirections] = useState<RefItem[]>([]);
@@ -248,7 +245,6 @@ export default function Agentsnouveau() {
     if (!validateForm()) return;
 
     try {
-      // ✅ préparer payload avec conversion -> number | null
       const payload: any = {
         ...formData,
         direction_id: formData.direction_id ? Number(formData.direction_id) : null,
@@ -275,7 +271,6 @@ export default function Agentsnouveau() {
         });
       } else {
         const response = await api.post("/agents_nouveau", payload);
-
         const createdAgent: AgentNouveau =
           (response.data && response.data.agent) || response.data;
 
@@ -292,7 +287,6 @@ export default function Agentsnouveau() {
     } catch (error: any) {
       console.error("Erreur lors de l’ajout/modification :", error);
 
-      // Si Laravel renvoie errors {}
       const msg =
         error?.response?.data?.message ||
         (error?.response?.data?.errors
@@ -316,7 +310,6 @@ export default function Agentsnouveau() {
   const handleEditAgent = (agent: AgentNouveau) => {
     setEditingAgent(agent);
 
-    // ✅ remplir le form avec IDs
     setFormData({
       immatricule: agent.immatricule ?? "",
       cin: agent.cin ?? "",
@@ -345,17 +338,47 @@ export default function Agentsnouveau() {
     setOpen(true);
   };
 
-  const filteredAgents = agents.filter((a) => {
-    const term = normalize(searchTerm);
-    if (!term) return true;
+  // Helpers affichage
+  const displayDirection = (a: AgentNouveau) =>
+    getLibelle(a.direction) || (a.direction_id ? `#${a.direction_id}` : "—");
+  const displayService = (a: AgentNouveau) =>
+    getLibelle(a.service) || (a.service_id ? `#${a.service_id}` : "—");
+  const displayFonction = (a: AgentNouveau) =>
+    getLibelle(a.fonction) || (a.fonction_id ? `#${a.fonction_id}` : "—");
 
-    return (
-      normalize(a.nom).includes(term) ||
-      normalize(a.prenom).includes(term) ||
-      normalize(a.immatricule).includes(term) ||
-      normalize(a.service_affectation).includes(term)
-    );
-  });
+  const clearFilters = () => {
+    setFilterDirectionId("");
+    setFilterServiceId("");
+    setFilterFonctionId("");
+  };
+
+  const filteredAgents = useMemo(() => {
+    const term = normalize(searchTerm);
+
+    return agents.filter((a) => {
+      const matchSearch =
+        !term ||
+        normalize(a.nom).includes(term) ||
+        normalize(a.prenom).includes(term) ||
+        normalize(a.immatricule).includes(term) ||
+        normalize(a.service_affectation).includes(term) ||
+        normalize(a.email).includes(term) ||
+        normalize(a.telephone).includes(term);
+
+      if (!matchSearch) return false;
+
+      const matchDir =
+        !filterDirectionId ||
+        String(a.direction_id ?? "") === String(filterDirectionId);
+      const matchServ =
+        !filterServiceId || String(a.service_id ?? "") === String(filterServiceId);
+      const matchFonc =
+        !filterFonctionId ||
+        String(a.fonction_id ?? "") === String(filterFonctionId);
+
+      return matchDir && matchServ && matchFonc;
+    });
+  }, [agents, searchTerm, filterDirectionId, filterServiceId, filterFonctionId]);
 
   // === EXPORT CSV ===
   const handleExport = async () => {
@@ -392,57 +415,12 @@ export default function Agentsnouveau() {
     }
   };
 
-  // === IMPORT CSV ===
-  const handleImportSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!importFile) {
-      toast({
-        variant: "destructive",
-        title: "Fichier manquant",
-        description: "Choisis un fichier CSV à importer.",
-      });
-      return;
-    }
-
-    try {
-      setIsImporting(true);
-      const result = await importAgentsNouveau(importFile);
-      toast({
-        title: "Import terminé",
-        description: `Créés : ${result.created ?? 0}, mis à jour : ${result.updated ?? 0}.`,
-      });
-
-      await fetchAgents();
-      setOpenImportDialog(false);
-      setImportFile(null);
-    } catch (error) {
-      console.error("Erreur import :", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible d’importer le fichier. Vérifie le format du CSV.",
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  // Helpers affichage (si relations non renvoyées par l’API)
-  const displayDirection = (a: AgentNouveau) =>
-    getLibelle(a.direction) || (a.direction_id ? `#${a.direction_id}` : "—");
-  const displayService = (a: AgentNouveau) =>
-    getLibelle(a.service) || (a.service_id ? `#${a.service_id}` : "—");
-  const displayFonction = (a: AgentNouveau) =>
-    getLibelle(a.fonction) || (a.fonction_id ? `#${a.fonction_id}` : "—");
-
   return (
     <div className="space-y-6">
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Gestion des Agents
-          </h1>
+          <h1 className="text-3xl font-bold text-foreground">Gestion des Agents</h1>
           <p className="text-muted-foreground mt-2">
             Les agents sont enregistrés dans <b>agents_nouveau</b>.
           </p>
@@ -454,10 +432,7 @@ export default function Agentsnouveau() {
             {isExporting ? "Export..." : "Exporter"}
           </Button>
 
-          <Button variant="outline" onClick={() => setOpenImportDialog(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Importer
-          </Button>
+          {/* ✅ IMPORT supprimé */}
 
           <Button
             className="bg-gradient-primary text-primary-foreground hover:scale-105 transition-transform shadow-soft"
@@ -635,10 +610,7 @@ export default function Agentsnouveau() {
                 <Input
                   value={formData.service_affectation}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      service_affectation: e.target.value,
-                    })
+                    setFormData({ ...formData, service_affectation: e.target.value })
                   }
                 />
 
@@ -715,9 +687,7 @@ export default function Agentsnouveau() {
             </div>
 
             <DialogFooter>
-              <Button type="submit">
-                {editingAgent ? "Modifier" : "Enregistrer"}
-              </Button>
+              <Button type="submit">{editingAgent ? "Modifier" : "Enregistrer"}</Button>
 
               <Button
                 type="button"
@@ -734,75 +704,121 @@ export default function Agentsnouveau() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog IMPORT */}
-      <Dialog open={openImportDialog} onOpenChange={setOpenImportDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Importer des agents (CSV)</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleImportSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Fichier CSV</Label>
-              <Input
-                type="file"
-                accept=".csv,text/csv"
-                onChange={(e) =>
-                  setImportFile(e.target.files ? e.target.files[0] : null)
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                Format attendu : immatricule;nom;prenom;email;telephone;corps;grade;categorie;service_affectation;date_affectation
-              </p>
-            </div>
-
-            <DialogFooter>
-              <Button type="submit" disabled={isImporting}>
-                {isImporting ? "Import..." : "Importer"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpenImportDialog(false)}
-              >
-                Annuler
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Recherche */}
-      <Card className="shadow-soft">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Table */}
+      {/* ✅ FILTRAGE placé AU-DESSUS du tableau (dans la même carte que le tableau) */}
       <Card className="shadow-soft">
         <CardHeader>
           <CardTitle>Liste des Agents</CardTitle>
           <CardDescription>{filteredAgents.length} agent(s) trouvé(s)</CardDescription>
         </CardHeader>
-        <CardContent>
+
+        <CardContent className="space-y-6">
+          {/* Recherche + filtres */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Filtrer par Direction</Label>
+                <select
+                  value={filterDirectionId}
+                  onChange={(e) => setFilterDirectionId(e.target.value)}
+                  className="w-full border rounded-md p-2"
+                >
+                  <option value="">Toutes</option>
+                  {directions.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.libelle}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Filtrer par Service</Label>
+                <select
+                  value={filterServiceId}
+                  onChange={(e) => setFilterServiceId(e.target.value)}
+                  className="w-full border rounded-md p-2"
+                >
+                  <option value="">Tous</option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.libelle}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Filtrer par Fonction</Label>
+                <select
+                  value={filterFonctionId}
+                  onChange={(e) => setFilterFonctionId(e.target.value)}
+                  className="w-full border rounded-md p-2"
+                >
+                  <option value="">Toutes</option>
+                  {fonctions.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.libelle}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2 text-sm">
+                {filterDirectionId && (
+                  <Badge variant="secondary" className="gap-1">
+                    Direction: {filterDirectionId}
+                  </Badge>
+                )}
+                {filterServiceId && (
+                  <Badge variant="secondary" className="gap-1">
+                    Service: {filterServiceId}
+                  </Badge>
+                )}
+                {filterFonctionId && (
+                  <Badge variant="secondary" className="gap-1">
+                    Fonction: {filterFonctionId}
+                  </Badge>
+                )}
+                {!filterDirectionId && !filterServiceId && !filterFonctionId && (
+                  <span className="text-muted-foreground">Aucun filtre appliqué</span>
+                )}
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearFilters}
+                disabled={!filterDirectionId && !filterServiceId && !filterFonctionId}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Réinitialiser les filtres
+              </Button>
+            </div>
+          </div>
+
+          {/* Tableau */}
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nom complet</TableHead>
+                <TableHead>Agent</TableHead>
                 <TableHead>Immatricule</TableHead>
-                <TableHead>Service actuel</TableHead>
+                <TableHead>Structure</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Fonction</TableHead>
+                <TableHead>Sexe</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -814,11 +830,22 @@ export default function Agentsnouveau() {
                     <div className="font-medium">
                       {agent.prenom} {agent.nom}
                     </div>
+                    <div className="text-xs text-muted-foreground">
+                      {displayFonction(agent) || "—"}
+                    </div>
                   </TableCell>
-                  <TableCell>{agent.immatricule}</TableCell>
+
+                  <TableCell>{agent.immatricule || "—"}</TableCell>
+
                   <TableCell>
-                    <Badge>{agent.service_affectation || "—"}</Badge>
+                    <div className="text-sm">
+                      <div className="font-medium">{agent.ministere || MTEFOP_NAME}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {displayDirection(agent)} • {displayService(agent)}
+                      </div>
+                    </div>
                   </TableCell>
+
                   <TableCell>
                     <div className="text-sm">
                       <Mail className="inline h-3 w-3 mr-1" />
@@ -829,7 +856,10 @@ export default function Agentsnouveau() {
                       {agent.telephone || "—"}
                     </div>
                   </TableCell>
-                  <TableCell>{displayFonction(agent) || "—"}</TableCell>
+
+                  <TableCell>
+                    <Badge variant="outline">{agent.sexe || "—"}</Badge>
+                  </TableCell>
 
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -857,7 +887,10 @@ export default function Agentsnouveau() {
 
               {filteredAgents.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="text-center text-sm text-muted-foreground"
+                  >
                     Aucun agent trouvé.
                   </TableCell>
                 </TableRow>
@@ -882,14 +915,32 @@ export default function Agentsnouveau() {
                 Informations personnelles
               </h3>
 
-              <p><strong>Immatricule :</strong> {selectedAgent.immatricule}</p>
-              <p><strong>CIN :</strong> {selectedAgent.cin || "—"}</p>
-              <p><strong>Email :</strong> {selectedAgent.email || "—"}</p>
-              <p><strong>Téléphone :</strong> {selectedAgent.telephone || "—"}</p>
-              <p><strong>Adresse :</strong> {selectedAgent.adresse || "—"}</p>
-              <p><strong>Date de naissance :</strong> {selectedAgent.date_naissance || "—"}</p>
-              <p><strong>Situation matrimoniale :</strong> {selectedAgent.situation_matrimoniale || "—"}</p>
-              <p><strong>Sexe :</strong> {selectedAgent.sexe || "—"}</p>
+              <p>
+                <strong>Immatricule :</strong> {selectedAgent.immatricule}
+              </p>
+              <p>
+                <strong>CIN :</strong> {selectedAgent.cin || "—"}
+              </p>
+              <p>
+                <strong>Email :</strong> {selectedAgent.email || "—"}
+              </p>
+              <p>
+                <strong>Téléphone :</strong> {selectedAgent.telephone || "—"}
+              </p>
+              <p>
+                <strong>Adresse :</strong> {selectedAgent.adresse || "—"}
+              </p>
+              <p>
+                <strong>Date de naissance :</strong>{" "}
+                {selectedAgent.date_naissance || "—"}
+              </p>
+              <p>
+                <strong>Situation matrimoniale :</strong>{" "}
+                {selectedAgent.situation_matrimoniale || "—"}
+              </p>
+              <p>
+                <strong>Sexe :</strong> {selectedAgent.sexe || "—"}
+              </p>
 
               <hr />
 
@@ -897,13 +948,30 @@ export default function Agentsnouveau() {
                 Informations professionnelles
               </h3>
 
-              <p><strong>Corps :</strong> {selectedAgent.corps || "—"}</p>
-              <p><strong>Grade :</strong> {selectedAgent.grade || "—"}</p>
-              <p><strong>Catégorie :</strong> {selectedAgent.categorie || "—"}</p>
-              <p><strong>Diplôme :</strong> {selectedAgent.diplome || "—"}</p>
-              <p><strong>Spécialisation :</strong> {selectedAgent.specialisation || "—"}</p>
-              <p><strong>Service d’affectation :</strong> {selectedAgent.service_affectation || "—"}</p>
-              <p><strong>Date d’affectation :</strong> {selectedAgent.date_affectation || "—"}</p>
+              <p>
+                <strong>Corps :</strong> {selectedAgent.corps || "—"}
+              </p>
+              <p>
+                <strong>Grade :</strong> {selectedAgent.grade || "—"}
+              </p>
+              <p>
+                <strong>Catégorie :</strong> {selectedAgent.categorie || "—"}
+              </p>
+              <p>
+                <strong>Diplôme :</strong> {selectedAgent.diplome || "—"}
+              </p>
+              <p>
+                <strong>Spécialisation :</strong>{" "}
+                {selectedAgent.specialisation || "—"}
+              </p>
+              <p>
+                <strong>Service d’affectation :</strong>{" "}
+                {selectedAgent.service_affectation || "—"}
+              </p>
+              <p>
+                <strong>Date d’affectation :</strong>{" "}
+                {selectedAgent.date_affectation || "—"}
+              </p>
 
               <hr />
 
@@ -911,10 +979,18 @@ export default function Agentsnouveau() {
                 Affectation hiérarchique
               </h3>
 
-              <p><strong>Ministère :</strong> {selectedAgent.ministere || MTEFOP_NAME}</p>
-              <p><strong>Direction :</strong> {displayDirection(selectedAgent) || "—"}</p>
-              <p><strong>Service :</strong> {displayService(selectedAgent) || "—"}</p>
-              <p><strong>Fonction :</strong> {displayFonction(selectedAgent) || "—"}</p>
+              <p>
+                <strong>Ministère :</strong> {selectedAgent.ministere || MTEFOP_NAME}
+              </p>
+              <p>
+                <strong>Direction :</strong> {displayDirection(selectedAgent) || "—"}
+              </p>
+              <p>
+                <strong>Service :</strong> {displayService(selectedAgent) || "—"}
+              </p>
+              <p>
+                <strong>Fonction :</strong> {displayFonction(selectedAgent) || "—"}
+              </p>
             </div>
 
             <DialogFooter>

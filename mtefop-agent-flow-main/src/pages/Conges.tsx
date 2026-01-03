@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
-import { format } from "date-fns";
+import { format, isSameMonth } from "date-fns";
 
 interface DemandeConge {
   id: number;
@@ -37,9 +37,11 @@ interface DemandeConge {
 export default function CongesAdmin() {
   const [searchTerm, setSearchTerm] = useState("");
   const [demandesConges, setDemandesConges] = useState<DemandeConge[]>([]);
+  const [statutFilter, setStatutFilter] =
+    useState<"all" | "en_attente" | "approuve" | "refuse">("all");
 
   const token = localStorage.getItem("token");
-  const API_URL = "http://127.0.0.1:8000/api/admin/conges"; // ⚡ Fix URL dev local
+  const API_URL = "http://127.0.0.1:8000/api/admin/conges";
 
   useEffect(() => {
     const fetchConges = async () => {
@@ -68,7 +70,53 @@ export default function CongesAdmin() {
     fetchConges();
   }, [token]);
 
-  const handleChangeStatut = async (id: number, statut: "approuve" | "refuse") => {
+  /* =======================
+     KPI – STATISTIQUES
+  ======================= */
+
+  const stats = useMemo(() => {
+    const total = demandesConges.length;
+
+    const enAttente = demandesConges.filter(
+      (d) => d.statut === "en_attente"
+    ).length;
+
+    const refuses = demandesConges.filter(
+      (d) => d.statut === "refuse"
+    ).length;
+
+    const approuves = demandesConges.filter(
+      (d) => d.statut === "approuve"
+    );
+
+    const approuvesCeMois = approuves.filter((d) =>
+      isSameMonth(new Date(d.dateDebut), new Date())
+    ).length;
+
+    const joursConsommes = approuves.reduce(
+      (total, d) => total + d.duree,
+      0
+    );
+
+    const tauxRefus =
+      total === 0 ? 0 : Math.round((refuses / total) * 100);
+
+    return {
+      enAttente,
+      approuvesCeMois,
+      joursConsommes,
+      tauxRefus,
+    };
+  }, [demandesConges]);
+
+  /* =======================
+     ACTIONS
+  ======================= */
+
+  const handleChangeStatut = async (
+    id: number,
+    statut: "approuve" | "refuse"
+  ) => {
     try {
       const res = await fetch(`${API_URL}/${id}`, {
         method: "PATCH",
@@ -89,16 +137,25 @@ export default function CongesAdmin() {
       );
     } catch (error) {
       console.error(error);
-      alert("Impossible de mettre à jour le statut, vérifie le backend.");
+      alert("Impossible de mettre à jour le statut.");
     }
   };
 
-  const filteredDemandes = demandesConges.filter(
-    (d) =>
+  /* =======================
+     FILTRES
+  ======================= */
+
+  const filteredDemandes = demandesConges.filter((d) => {
+    const matchSearch =
       d.agent.toLowerCase().includes(searchTerm.toLowerCase()) ||
       d.typeConge.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.motif.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      d.motif.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchStatut =
+      statutFilter === "all" ? true : d.statut === statutFilter;
+
+    return matchSearch && matchStatut;
+  });
 
   const getStatutColor = (statut: string) => {
     switch (statut) {
@@ -137,14 +194,35 @@ export default function CongesAdmin() {
     }
   };
 
+  const statutTabs = [
+    { label: "Tous", value: "all" },
+    { label: "En attente", value: "en_attente" },
+    { label: "Approuvé", value: "approuve" },
+    { label: "Refusé", value: "refuse" },
+  ];
+
+  const getTabClass = (value: string) => {
+    if (statutFilter === value) {
+      switch (value) {
+        case "en_attente":
+          return "bg-yellow-500 text-white";
+        case "approuve":
+          return "bg-green-500 text-white";
+        case "refuse":
+          return "bg-red-500 text-white";
+        default:
+          return "bg-gray-800 text-white";
+      }
+    }
+    return "bg-gray-100 text-gray-700 hover:bg-gray-200";
+  };
+
   return (
     <div className="space-y-6">
+      {/* TITRE */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Demandes de congés</h1>
-          <p className="text-muted-foreground mt-2">
-            Approuver ou refuser les demandes des agents
-          </p>
+          <h1 className="text-3xl font-bold">Demandes de congés</h1>
         </div>
         <div className="flex-1 max-w-sm">
           <Input
@@ -155,12 +233,68 @@ export default function CongesAdmin() {
         </div>
       </div>
 
-      <Card className="shadow-soft">
+      {/* KPI */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader>
+            <CardDescription>En attente</CardDescription>
+            <CardTitle className="text-3xl text-yellow-600">
+              {stats.enAttente}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Approuvés ce mois</CardDescription>
+            <CardTitle className="text-3xl text-green-600">
+              {stats.approuvesCeMois}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Jours consommés</CardDescription>
+            <CardTitle className="text-3xl">
+              {stats.joursConsommes} j
+            </CardTitle>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Taux de refus</CardDescription>
+            <CardTitle className="text-3xl text-red-600">
+              {stats.tauxRefus} %
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* TABLE */}
+      <Card>
         <CardHeader>
           <CardTitle>Historique des demandes</CardTitle>
-          <CardDescription>{filteredDemandes.length} trouvée(s)</CardDescription>
+          <CardDescription>
+            {filteredDemandes.length} trouvée(s)
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="flex gap-4 mb-4">
+            {statutTabs.map((tab) => (
+              <button
+                key={tab.value}
+                className={`px-4 py-2 rounded font-semibold ${getTabClass(
+                  tab.value
+                )}`}
+                onClick={() => setStatutFilter(tab.value as any)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -198,16 +332,18 @@ export default function CongesAdmin() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-success border-success"
-                          onClick={() => handleChangeStatut(demande.id, "approuve")}
+                          onClick={() =>
+                            handleChangeStatut(demande.id, "approuve")
+                          }
                         >
                           <CheckCircle className="h-3 w-3" />
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-destructive border-destructive"
-                          onClick={() => handleChangeStatut(demande.id, "refuse")}
+                          onClick={() =>
+                            handleChangeStatut(demande.id, "refuse")
+                          }
                         >
                           <XCircle className="h-3 w-3" />
                         </Button>
